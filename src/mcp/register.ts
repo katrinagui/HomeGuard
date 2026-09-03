@@ -7,6 +7,7 @@
 import { initializeWebMCPPolyfill } from '@mcp-b/webmcp-polyfill';
 import { useHouse } from '../store';
 import { buildTools } from './tools';
+import type { Msg } from '../i18n';
 
 export interface WebMcpHandle {
   /** Unregisters every tool from this batch and stops pending status writes. */
@@ -24,7 +25,7 @@ export function setupWebMcp(): WebMcpHandle {
   const registeredNames: string[] = [];
   let resolvedContext: { registerTool(t: unknown, o?: unknown): unknown } | null = null;
 
-  const setStatus = (status: Parameters<typeof store.setMcpStatus>[0], detail: string) => {
+  const setStatus = (status: Parameters<typeof store.setMcpStatus>[0], detail: string | Msg) => {
     // A stale registration pass (disposed batch) must never overwrite the
     // status written by the live one.
     if (!disposed) store.setMcpStatus(status, detail);
@@ -70,10 +71,7 @@ export function setupWebMcp(): WebMcpHandle {
     const isNative = !polyfillInstalled && Boolean(modelContext);
 
     if (!modelContext) {
-      setStatus(
-        'unsupported',
-        '当前浏览器不支持 WebMCP。可用 Chrome 并开启 chrome://flags/#enable-webmcp-testing，或在 ChatGPT 应用内打开本页。',
-      );
+      setStatus('unsupported', { key: 'mcp.detail.unsupported' });
       return;
     }
     resolvedContext = modelContext;
@@ -101,7 +99,7 @@ export function setupWebMcp(): WebMcpHandle {
           }
         }
         controller.abort();
-        setStatus('error', `工具 "${tool.name}" 注册失败：${String(error)}`);
+        setStatus('error', `Tool "${tool.name}" failed to register: ${String(error)}`);
         return;
       }
     }
@@ -123,8 +121,8 @@ export function setupWebMcp(): WebMcpHandle {
     setStatus(
       isNative ? 'ready' : 'polyfill',
       isNative
-        ? `原生 WebMCP 已连接，${registered} 个工具已注册。`
-        : `WebMCP polyfill 模式，${registered} 个工具已注册（演示）。`,
+        ? `Native WebMCP connected. ${registered} tools registered.`
+        : `WebMCP polyfill mode. ${registered} tools registered (demo).`,
     );
   };
 

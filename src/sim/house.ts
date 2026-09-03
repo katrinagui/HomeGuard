@@ -1,12 +1,19 @@
 // House domain model — single source of truth for the simulation.
 // Tools (mcp/) and UI actions both mutate this state through the store,
 // so agent actions and human actions are indistinguishable downstream.
+//
+// Naming convention: `name` is the canonical English name (agent-facing
+// contract), `nameZh` is the Chinese display name (UI). Events carry Msg
+// objects (key + params) and are localized at render time — see src/i18n.
+
+import type { Msg } from '../i18n';
 
 export type RoomId = 'kitchen' | 'living_room';
 
 export interface Room {
   id: RoomId;
   name: string;
+  nameZh: string;
   temperatureC: number;
   humidityPct: number;
   /** standing water depth in cm; only meaningful where flooding is possible */
@@ -28,6 +35,7 @@ export type DeviceCategory = 'valve' | 'breaker' | 'light' | 'appliance' | 'hvac
 export interface Device {
   id: DeviceId;
   name: string;
+  nameZh: string;
   category: DeviceCategory;
   room: RoomId | 'utility';
   on: boolean;
@@ -41,7 +49,7 @@ export interface HouseEvent {
   /** seconds since the exercise started */
   t: number;
   kind: EventKind;
-  text: string;
+  msg: Msg;
 }
 
 export interface ToolCallRecord {
@@ -49,7 +57,8 @@ export interface ToolCallRecord {
   tool: string;
   input: Record<string, unknown>;
   outcome: 'ok' | 'pending_confirmation' | 'rejected' | 'error';
-  detail: string;
+  /** agent-facing detail is a plain English string; human-facing uses Msg */
+  detail: string | Msg;
   actor: 'human' | 'agent';
 }
 
@@ -76,7 +85,7 @@ export interface HouseState {
   scenario: ScenarioState;
 }
 
-export const DAMAGE_PER_CM_PER_SEC = 0.5; // loss points while standing water sits
+export const DAMAGE_PER_CM_PER_SEC = 2; // loss points while standing water sits (star thresholds tuned to this)
 export const SPOILED_FOOD_PENALTY = 120; // breaker off with fridge loaded
 export const LEAK_FLOW_CM_PER_SEC = 0.6; // water rises while valve open
 export const DRAIN_CM_PER_SEC = 1.2; // water recedes once valve shut
@@ -91,24 +100,23 @@ export const MAINS_POWERED_DEVICES: DeviceId[] = [
 ];
 
 export function createInitialHouse(): HouseState {
-  const now = 0;
   return {
     rooms: {
-      kitchen: { id: 'kitchen', name: '厨房', temperatureC: 22.5, humidityPct: 48, waterLevelCm: 0 },
-      living_room: { id: 'living_room', name: '客厅', temperatureC: 23.0, humidityPct: 45, waterLevelCm: 0 },
+      kitchen: { id: 'kitchen', name: 'Kitchen', nameZh: '厨房', temperatureC: 22.5, humidityPct: 48, waterLevelCm: 0 },
+      living_room: { id: 'living_room', name: 'Living Room', nameZh: '客厅', temperatureC: 23.0, humidityPct: 45, waterLevelCm: 0 },
     },
     devices: {
-      main_valve: { id: 'main_valve', name: '总水阀', category: 'valve', room: 'utility', on: true, toggleable: false },
-      main_breaker: { id: 'main_breaker', name: '总电闸', category: 'breaker', room: 'utility', on: true, toggleable: false },
-      kitchen_light: { id: 'kitchen_light', name: '厨房顶灯', category: 'light', room: 'kitchen', on: false, toggleable: true },
-      kitchen_fridge: { id: 'kitchen_fridge', name: '冰箱（接在总电闸回路）', category: 'appliance', room: 'kitchen', on: true, toggleable: false },
-      living_room_light: { id: 'living_room_light', name: '客厅落地灯', category: 'light', room: 'living_room', on: true, toggleable: true },
-      robot_vacuum: { id: 'robot_vacuum', name: '扫地机器人', category: 'appliance', room: 'living_room', on: false, toggleable: true },
-      thermostat: { id: 'thermostat', name: '中央温控器', category: 'hvac', room: 'living_room', on: true, toggleable: true },
-      smart_lock: { id: 'smart_lock', name: '智能门锁', category: 'lock', room: 'utility', on: true, toggleable: true },
+      main_valve: { id: 'main_valve', name: 'Main Valve', nameZh: '总水阀', category: 'valve', room: 'utility', on: true, toggleable: false },
+      main_breaker: { id: 'main_breaker', name: 'Main Breaker', nameZh: '总电闸', category: 'breaker', room: 'utility', on: true, toggleable: false },
+      kitchen_light: { id: 'kitchen_light', name: 'Kitchen Ceiling Light', nameZh: '厨房顶灯', category: 'light', room: 'kitchen', on: false, toggleable: true },
+      kitchen_fridge: { id: 'kitchen_fridge', name: 'Refrigerator (main circuit)', nameZh: '冰箱（接在总电闸回路）', category: 'appliance', room: 'kitchen', on: true, toggleable: false },
+      living_room_light: { id: 'living_room_light', name: 'Living-Room Floor Lamp', nameZh: '客厅落地灯', category: 'light', room: 'living_room', on: true, toggleable: true },
+      robot_vacuum: { id: 'robot_vacuum', name: 'Robot Vacuum', nameZh: '扫地机器人', category: 'appliance', room: 'living_room', on: false, toggleable: true },
+      thermostat: { id: 'thermostat', name: 'Central Thermostat', nameZh: '中央温控器', category: 'hvac', room: 'living_room', on: true, toggleable: true },
+      smart_lock: { id: 'smart_lock', name: 'Smart Lock', nameZh: '智能门锁', category: 'lock', room: 'utility', on: true, toggleable: true },
     },
     events: [
-      { t: now, kind: 'system', text: 'HomeGuard 已接管本屋。一切正常。' },
+      { t: 0, kind: 'system', msg: { key: 'event.init' } },
     ],
     toolCalls: [],
     scenario: {

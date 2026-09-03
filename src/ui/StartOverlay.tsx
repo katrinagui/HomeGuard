@@ -1,32 +1,35 @@
 import { useHouse } from '../store';
+import { translate, useLocale } from '../i18n';
 
 export function StartOverlay() {
   const start = useHouse((s) => s.startExercise);
   const mcpStatus = useHouse((s) => s.mcpStatus);
+  const locale = useLocale((s) => s.locale);
+  const setLocale = useLocale((s) => s.setLocale);
+  const tr = (key: string) => translate(key, locale);
 
-  const hint =
+  const hintKey =
     mcpStatus === 'ready'
-      ? 'WebMCP 已就绪：智能体可以看到本页注册的全部工具。'
+      ? 'ui.start.hint.ready'
       : mcpStatus === 'polyfill'
-        ? '当前浏览器不支持原生 WebMCP，已启用 polyfill 演示模式。'
+        ? 'ui.start.hint.polyfill'
         : mcpStatus === 'registering'
-          ? '正在检测 WebMCP…'
-          : 'WebMCP 不可用：你仍可手动游玩，但智能体无法看到本页工具。';
+          ? 'ui.start.hint.registering'
+          : 'ui.start.hint.unavailable';
 
   return (
     <div className="modal-backdrop start-backdrop">
       <div className="modal start">
+        <div className="lang-switch start-lang" role="group" aria-label="Language">
+          <button className={locale === 'zh' ? 'active' : ''} onClick={() => setLocale('zh')}>中文</button>
+          <button className={locale === 'en' ? 'active' : ''} onClick={() => setLocale('en')}>EN</button>
+        </div>
         <div className="hazard" aria-hidden="true" />
         <h1>HomeGuard</h1>
-        <p className="start-sub">智能屋抢救行动 · 应急处置演习</p>
-        <p>
-          你家的厨房供水管即将爆裂。你可以亲自抢修，也可以召唤
-          ChatGPT 智能体担任物业管家——它通过本页注册的 WebMCP
-          工具读取全屋状态、翻查设备日志、定位故障，
-          并在执行任何危险操作前，把决定权交还给你。
-        </p>
-        <p className="start-hint">{hint}</p>
-        <button className="primary big" onClick={start}>开始演习</button>
+        <p className="start-sub">{tr('ui.start.sub')}</p>
+        <p>{tr('ui.start.body')}</p>
+        <p className="start-hint">{tr(hintKey)}</p>
+        <button className="primary big" onClick={start}>{tr('ui.start.begin')}</button>
       </div>
     </div>
   );

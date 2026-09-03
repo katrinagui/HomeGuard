@@ -1,6 +1,10 @@
 // The 6 registered WebMCP tools. Tool handlers are thin wrappers over store
 // actions: same code path as the UI buttons, so agent and human actions are
 // indistinguishable in state and logs.
+//
+// Everything the agent sees (descriptions, schemas, return values, errors) is
+// English by contract — a stable language for tool routing. Tool-call records
+// shown to humans in the debrief carry localized Msg objects where needed.
 
 import { useHouse } from '../store';
 import type { DeviceId } from '../sim/house';
@@ -24,10 +28,11 @@ export function buildTools(): ToolDefinition[] {
   return [
     {
       name: 'get_house_status',
-      title: '读取全屋状态',
+      title: 'Read house status',
       description:
-        '读取智能屋的完整实时状态：每个房间的温度、湿度、积水深度，每台设备的开关与故障情况，' +
-        '当前活跃的紧急事件，以及累计损失分数。诊断任何问题前请先调用本工具。',
+        'Read the full real-time state of the smart home: per-room temperature, humidity and standing water, ' +
+        'every device with its power state, active emergencies, and the accumulated damage score. ' +
+        'Call this before diagnosing anything.',
       inputSchema: { type: 'object', properties: {} },
       annotations: { readOnlyHint: true },
       execute: () => {
@@ -36,7 +41,7 @@ export function buildTools(): ToolDefinition[] {
           tool: 'get_house_status',
           input: {},
           outcome: 'ok',
-          detail: `损失 ${Math.round(house.scenario.damageScore)} 分`,
+          detail: { key: 'tl.status', params: { score: Math.round(house.scenario.damageScore) } },
           actor: 'agent',
         });
         return {
@@ -55,23 +60,23 @@ export function buildTools(): ToolDefinition[] {
             on: d.on,
           })),
           activeFaults: house.scenario.leakActive && !house.scenario.valveShut
-            ? ['厨房供水管爆裂，积水持续上涨，需要关闭总水阀（shut_off_main_valve）']
+            ? ['Kitchen supply pipe burst, standing water rising. Shut the main valve (shut_off_main_valve).']
             : [],
         };
       },
     },
     {
       name: 'get_device_log',
-      title: '读取设备日志',
+      title: 'Read device log',
       description:
-        '读取指定设备的事件日志，包含历史读数和故障记录。当 get_house_status 报告设备异常时，' +
-        '用本工具查看该设备的详细日志以定位原因。',
+        'Read the event log of one device, including historical readings and fault records. ' +
+        'When get_house_status reports an anomaly, use this to pinpoint the cause.',
       inputSchema: {
         type: 'object',
         properties: {
           deviceId: {
             type: 'string',
-            description: '设备 ID，例如 main_valve、kitchen_fridge、main_breaker',
+            description: 'Device ID, e.g. main_valve, kitchen_fridge, main_breaker',
           },
         },
         required: ['deviceId'],
@@ -81,15 +86,15 @@ export function buildTools(): ToolDefinition[] {
         const deviceId = String(input.deviceId ?? '');
         const house = useHouse.getState().house;
         if (!(deviceId in house.devices)) {
-          const msg = `错误：未找到设备 "${deviceId}"。可用设备：${Object.keys(house.devices).join('、')}。`;
+          const message = `Device "${deviceId}" not found. Available devices: ${Object.keys(house.devices).join(', ')}.`;
           useHouse.getState().logToolCall({
             tool: 'get_device_log',
             input,
             outcome: 'error',
-            detail: msg,
+            detail: message,
             actor: 'agent',
           });
-          return msg;
+          return message;
         }
         useHouse.getState().logToolCall({
           tool: 'get_device_log',
@@ -107,22 +112,22 @@ export function buildTools(): ToolDefinition[] {
     },
     {
       name: 'set_device_power',
-      title: '设置设备电源',
+      title: 'Set device power',
       description:
-        '把一台普通设备设置为指定的电源状态（幂等：重复设置同一状态不会产生副作用）。' +
-        '灯具、扫地机器人、温控器、智能门锁适用。总水阀和总电闸不适用本工具，' +
-        '请分别使用 shut_off_main_valve 和 kill_main_breaker。',
+        'Set a regular device (lights, robot vacuum, thermostat, smart lock) to an explicit power state. ' +
+        'Idempotent: setting the same state twice has no side effects. ' +
+        'Not for the main valve or breaker — use shut_off_main_valve or kill_main_breaker.',
       inputSchema: {
         type: 'object',
         properties: {
           deviceId: {
             type: 'string',
-            description: '要操作的设备 ID',
+            description: 'Device to act on',
             enum: [...SETTABLE_DEVICE_IDS],
           },
           on: {
             type: 'boolean',
-            description: '目标电源状态：true 为开启，false 为关闭（必填）',
+            description: 'Target power state: true = on, false = off (required)',
           },
         },
         required: ['deviceId', 'on'],
@@ -144,12 +149,12 @@ export function buildTools(): ToolDefinition[] {
     },
     {
       name: 'set_thermostat',
-      title: '设定温控目标',
-      description: '设定中央温控器的目标温度（16–30°C）。房间温度会逐渐向目标靠拢。',
+      title: 'Set thermostat target',
+      description: 'Set the target temperature of the central thermostat (16–30°C). Room temperatures drift toward the target.',
       inputSchema: {
         type: 'object',
         properties: {
-          targetC: { type: 'number', description: '目标温度，摄氏度，16 到 30 之间' },
+          targetC: { type: 'number', description: 'Target temperature in °C, between 16 and 30' },
         },
         required: ['targetC'],
       },
@@ -169,10 +174,11 @@ export function buildTools(): ToolDefinition[] {
     },
     {
       name: 'shut_off_main_valve',
-      title: '关闭总水阀（危险操作）',
+      title: 'Shut off the main valve (destructive)',
       description:
-        '【破坏性操作，需要用户在页面上确认】关闭全屋主水阀，立即止住厨房漏水。' +
-        '副作用：全屋停水，正在运行的洗衣机/洗碗机停止。这是止水的唯一手段。',
+        '[Destructive — requires explicit user confirmation on the page] Shut the whole-home main valve to stop the ' +
+        'kitchen leak immediately. Side effects: the entire home loses water; running washing machines and dishwashers ' +
+        'stop. This is the only way to stop the water.',
       inputSchema: { type: 'object', properties: {} },
       execute: async (_input, options) => {
         const guard = destructiveGuard('shut_off_main_valve');
@@ -193,28 +199,28 @@ export function buildTools(): ToolDefinition[] {
             tool: 'shut_off_main_valve',
             input: {},
             outcome: 'rejected',
-            detail: '用户拒绝了本次操作',
+            detail: { key: 'tl.rejected' },
             actor: 'agent',
           });
-          return '用户拒绝了关闭总水阀。请向用户说明漏水的紧急性，不要重复尝试。';
+          return 'The user rejected shutting the main valve. Explain the urgency, but do not retry without new information.';
         }
         useHouse.getState().logToolCall({
           tool: 'shut_off_main_valve',
           input: {},
           outcome: 'ok',
-          detail: '用户批准，总水阀已关闭',
+          detail: { key: 'tl.approved' },
           actor: 'agent',
         });
-        return '总水阀已关闭，供水切断，厨房漏水已停止。积水会逐渐退去。';
+        return 'Main valve shut. Water supply is cut and the kitchen leak has stopped; standing water will drain.';
       },
     },
     {
       name: 'kill_main_breaker',
-      title: '拉下总电闸（危险操作）',
+      title: 'Kill the main breaker (destructive)',
       description:
-        '【破坏性操作，需要用户在页面上确认】拉下全屋总电闸，切断所有电力。' +
-        '副作用：冰箱、灯具、温控器等市电设备全部立即断电，冷藏食材报废（损失 +120 分）。' +
-        '仅在没有漏电风险顾虑需要断电时使用。',
+        '[Destructive — requires explicit user confirmation on the page] Open the main breaker and cut all power. ' +
+        'Side effects: every mains-powered device goes down at once — the fridge stops and its food spoils (+120 damage). ' +
+        'Only use when cutting power is genuinely the right call.',
       inputSchema: { type: 'object', properties: {} },
       execute: async (_input, options) => {
         const guard = destructiveGuard('kill_main_breaker');
@@ -235,19 +241,19 @@ export function buildTools(): ToolDefinition[] {
             tool: 'kill_main_breaker',
             input: {},
             outcome: 'rejected',
-            detail: '用户拒绝了本次操作',
+            detail: { key: 'tl.rejected' },
             actor: 'agent',
           });
-          return '用户拒绝了拉下总电闸。请向用户了解顾虑后再决定下一步。';
+          return 'The user rejected killing the main breaker. Ask about their concerns before deciding next steps.';
         }
         useHouse.getState().logToolCall({
           tool: 'kill_main_breaker',
           input: {},
           outcome: 'ok',
-          detail: '用户批准，总电闸已拉下',
+          detail: { key: 'tl.breakerApproved' },
           actor: 'agent',
         });
-        return '总电闸已拉下，全屋市电设备已断电。注意：冰箱已断电，食材正在变质。';
+        return 'Main breaker off. All mains devices are down — note the fridge is off and its food will spoil.';
       },
     },
   ];
@@ -261,16 +267,16 @@ export function buildTools(): ToolDefinition[] {
  */
 function destructiveGuard(action: 'shut_off_main_valve' | 'kill_main_breaker'): string | null {
   const { house, pendingConfirmation } = useHouse.getState();
-  if (house.scenario.phase === 'idle') return '演习尚未开始：请先在页面上点击「开始演习」。';
-  if (house.scenario.phase === 'resolved') return '演习已结束：本工具仅供复盘查看，不能再执行操作。';
+  if (house.scenario.phase === 'idle') return 'The drill has not started yet. Ask the user to click "Start the drill" on the page first.';
+  if (house.scenario.phase === 'resolved') return 'The drill is over — tools are read-only for review now.';
   if (action === 'shut_off_main_valve' && house.scenario.valveShut) {
-    return '总水阀已经是关闭状态，无需重复操作。';
+    return 'The main valve is already shut. No need to repeat.';
   }
   if (action === 'kill_main_breaker' && house.scenario.breakerOff) {
-    return '总电闸已经是断开状态，无需重复操作。';
+    return 'The main breaker is already off. No need to repeat.';
   }
   if (pendingConfirmation) {
-    return `页面上已有一个等待确认的操作（${pendingConfirmation.action}），请等用户处理后再试。`;
+    return `Another action ("${pendingConfirmation.action}") is awaiting user confirmation. Wait for the user to decide first.`;
   }
   return null;
 }
@@ -288,14 +294,14 @@ function withAbort(
   if (!signal) return promise;
   if (signal.aborted) {
     useHouse.getState().rejectPending();
-    return Promise.reject(new Error('工具调用已被取消。'));
+    return Promise.reject(new Error('Tool call cancelled.'));
   }
   return new Promise((resolve, reject) => {
     const onAbort = () => {
       cleanup();
       // Clear the card if it is still waiting; harmless if already resolved.
       useHouse.getState().rejectPending();
-      reject(new Error('工具调用已被取消。'));
+      reject(new Error('Tool call cancelled.'));
     };
     const cleanup = () => signal.removeEventListener('abort', onAbort);
     signal.addEventListener('abort', onAbort);

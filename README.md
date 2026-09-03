@@ -1,92 +1,91 @@
-# 🏠 HomeGuard — 智能屋抢救行动
+# HomeGuard — An Agent-Native Smart-Home Emergency Drill
 
-一个**智能体原生（agent-native）**的智能家居**应急处置训练模拟器**，基于开放标准 [WebMCP](https://github.com/webmachinelearning/webmcp)（`document.modelContext`）构建。
+[中文说明](README.zh-CN.md)
 
-> **Live Demo**: _（部署后填写）_ ｜ **Demo Video**: _（录制后填写）_ ｜ **License**: MIT
+A smart home that breaks on purpose. **HomeGuard** is a training simulator built on the open [WebMCP](https://github.com/webmachinelearning/webmcp) standard (`document.modelContext`): when a kitchen pipe bursts, a ChatGPT agent diagnoses the fault through structured tools registered on the page — while every destructive action (shutting the main valve, killing the breaker) is suspended until the human explicitly approves it on a visible confirmation card.
 
-## 这解决什么真实问题
+> **Live Demo**: _TBD_ · **Demo Video**: _TBD_ · **License**: MIT
 
-复杂智能家居的面板和故障日志让应急处置成本很高：普通用户不知道先关阀还是先断电，也说不清危险操作的副作用。HomeGuard 用一间会"出事"的模拟房子验证一个新交互范式：
+## Why
 
-- **智能体负责诊断和建议**：通过页面注册的结构化工具读取实时设备状态、翻查故障日志、定位原因——而不是抓取 DOM 或模拟点击。
-- **人类批准高影响操作**：关总水阀、拉总电闸这类不可逆动作，智能体必须请求、用户必须确认，决定权始终在人。
-- **边界诚实**：本演示使用本地模拟状态，不连接真实住宅设备；它展示的是智能体与设备页面应有的协作协议。
+When a pipe bursts, a homeowner faces a wall of device panels and cryptic logs and must make irreversible decisions under time pressure. DOM scraping cannot express device semantics, dangerous side effects, or confirmation boundaries. WebMCP lets the page itself declare its capabilities, so an in-browser agent can *diagnose* like a professional property manager while the page enforces the rules of engagement:
 
-## 场景：厨房漏水应急演习
+- **The agent diagnoses and proposes** — it reads live sensor state and device logs through typed tools instead of scraping the DOM.
+- **The human approves irreversible actions** — destructive tools suspend mid-call and resolve only when the user decides. Rejecting returns a respectful message to the agent.
+- **Honest boundaries** — this is a local simulation; it demonstrates the protocol, it does not touch real homes.
 
-你家的厨房供水管即将爆裂。8 秒后水浸传感器报警，积水随时间上涨、损失分数持续累积。你可以亲自抢修，也可以召唤 ChatGPT 智能体当"物业管家"：它读状态、查日志、定位爆管，并在执行危险操作前请求你的确认。演习结束后，结算页给出损失评分和**智能体操作复盘时间线**（每一次工具调用、参数与结果）。
+## The six registered tools
 
-## 注册的 WebMCP 工具
-
-| 工具 | 注解 | 说明 |
+| Tool | Annotation | Purpose |
 |---|---|---|
-| `get_house_status` | `readOnlyHint` | 全屋房间传感器 + 设备状态 + 活跃故障 + 损失分数 |
-| `get_device_log` | `readOnlyHint` | 指定设备的事件日志（诊断线索在这里） |
-| `set_device_power` | — | 设置设备电源状态，**幂等**（重复设置同一状态无副作用） |
-| `set_thermostat` | — | 设定目标温度（16–30°C，越界返回纠正性错误） |
-| `shut_off_main_valve` | 危险 | 关总水阀止水，需用户在页面上确认 |
-| `kill_main_breaker` | 危险 | 拉总电闸，市电设备全部断电、冰箱罚 +120 分，需用户确认 |
+| `get_house_status` | `readOnlyHint` | Per-room sensors, device states, active faults, damage score |
+| `get_device_log` | `readOnlyHint` | One device's event log — the diagnosis clues live here |
+| `set_device_power` | — | Set a device's power state; **idempotent** by contract |
+| `set_thermostat` | — | Set the target temperature (16–30 °C, corrective errors) |
+| `shut_off_main_valve` | destructive* | Stops the water; requires user confirmation |
+| `kill_main_breaker` | destructive* | Cuts all power; fridge penalty (+120); requires confirmation |
 
-破坏性提示写入工具 `title`/`description`（当前草案的 `annotations` 仅支持 `readOnlyHint`/`untrustedContentHint`）；所有危险操作在 store 层强制走可见确认卡片，并支持智能体取消信号。
+\* The current draft spec's `annotations` only support `readOnlyHint` / `untrustedContentHint`, so destructive intent is declared in the tool `title`/`description` and enforced by the visible confirmation flow.
 
-## 阶段门卫（防绕过）
+## Safety model
 
-- `idle`（未开始）：只读工具可用，一切变更类工具返回"演习尚未开始"纠正性错误；
-- `active`（演习中）：全部工具可用；
-- `resolved`（已结束）：只允许复盘查看。
+- **Confirmation queue**: a destructive tool's `execute()` returns a promise resolved by the on-page confirmation card; the agent's abort signal clears the card if the call is cancelled.
+- **Phase gating** enforced in the store (the final authority, since agents bypass buttons): `idle` rejects all mutations, `active` allows everything, `resolved` is read-only for review.
+- **Atomic state**: pulling the breaker shuts down every mains device and applies the fridge penalty exactly once, in the same update that resolves the tool.
+- **One code path for humans and agents**: UI buttons and tool handlers call the same store actions; the debrief timeline tags every entry with its actor.
 
-校验在共享 store action 里实现（智能体不经过 UI 按钮，store 是最终边界）；UI 同步禁用不可用按钮。
-
-## 🚀 快速开始
+## Quick start
 
 ```bash
 npm install
-npm run dev        # 开发模式 http://localhost:5173
-npm test           # Vitest 行为测试（14 用例）
-npm run build      # 产出 dist/
-npm run preview    # 预览生产构建
+npm run dev        # dev server, http://localhost:5173
+npm test           # Vitest behavior suite (14 tests)
+npm run build      # production build to dist/
+npm run preview    # serve the production build
 ```
 
-### 让智能体"看见"本页工具
+### Letting an agent see the tools
 
-- **ChatGPT 应用内浏览器**：原生支持 WebMCP，直接打开部署后的 URL 即可。
-- **Chrome 预览版**：在 `chrome://flags/#enable-webmcp-testing` 开启实验标志后访问。
-- **其他浏览器**：自动启用 `@mcp-b/webmcp-polyfill` 演示模式。
+- **ChatGPT's in-app browser**: native WebMCP support — just open the deployed URL.
+- **Chrome preview**: enable `chrome://flags/#enable-webmcp-testing`.
+- **Other browsers**: the app falls back to the `@mcp-b/webmcp-polyfill` demo mode. The polyfill verifies the in-page flow (registration, schemas, handlers, confirmation card) but *not* cross-page agent discovery or native cancellation propagation.
+- In-page test handle: `window.__homeguard.executeTool('get_house_status', {})`.
 
-### polyfill 能验证什么、不能验证什么
+### Languages
 
-- ✅ 能：工具注册流程、Schema 形状、handler 行为与返回值、确认卡片流程（页面内）。
-- ❌ 不能：页面外真实智能体的发现与调用、原生取消信号传播（polyfill 不传执行参数，本项目已做缺省兼容）、跨 frame 工具可见性。
-- 页面内的测试手柄：`window.__homeguard.executeTool('get_house_status', {})`（辅助手段，行为与真实调用一致）。
+The UI is bilingual (中文 / English) via the toggle in the header — persisted to `localStorage`, defaulted from the browser language. The agent-facing contract (tool descriptions, schemas, return values, store messages, device logs) is English-only by design: tool routing needs a stable language, and the UI language is a presentation concern.
 
-## 🏗 架构
+## Architecture
 
 ```
 src/
-├── sim/        # 房屋数据模型 + tick 游戏引擎（纯函数）
-├── store.ts    # Zustand 单 store：UI 与工具共用同一批 action；阶段/断电约束的最终边界
+├── i18n/        # string dictionary, locale store, t()/tMsg() helpers
+├── sim/         # house model + tick engine (pure functions)
+├── store.ts     # single Zustand store — UI and tools share one set of actions
 ├── mcp/
-│   ├── tools.ts     # 6 个工具定义 + 破坏性守卫 + 确认队列 Promise 桥
-│   └── register.ts  # 三级回退注册（document → navigator → polyfill）+ 生命周期 cleanup
-└── ui/         # 仪表盘 / 确认卡片 / 事件日志 / 结算复盘
-tests/          # Vitest 最小行为测试集
+│   ├── tools.ts     # tool definitions, destructive guard, confirmation-queue bridge
+│   └── register.ts  # document → navigator → polyfill fallback + lifecycle cleanup
+└── ui/          # dashboard, confirm card, event log, start poster, debrief report
+tests/           # Vitest behavior suite
+docs/            # design plan, phase reviews, submission materials
 ```
 
-关键设计：
+## Deployment notes
 
-- **人机同路径**：工具 handler 与 UI 按钮调用同一批 store action，复盘时间线用 `actor` 字段区分来源。
-- **确认队列**：破坏性工具的 `execute` 返回由页面确认卡片 resolve 的 Promise；监听智能体取消信号（`signal`），取消时清除卡片。
-- **注册生命周期**：`setupWebMcp()` 返回可清理 handle；部分注册失败即回滚整批；StrictMode 双挂载不会重复注册。
-- **原子状态**：拉总电闸一次性关闭所有市电设备并计一次罚分，工具返回时 UI 已一致。
+WebMCP requires the page to run in an **origin agent cluster**, otherwise `registerTool()` throws `SecurityError`. This repo ships the header in three places:
 
-## ☁️ 部署注意
+- `public/_headers` — Netlify / Cloudflare Pages
+- `vercel.json` — Vercel
+- `vite.config.ts` — local dev & preview servers
 
-WebMCP 要求页面运行在 **origin agent cluster** 中，否则 `registerTool()` 抛 `SecurityError`。仓库已配置：
+Self-hosting: make sure your server sends `Origin-Agent-Cluster: ?1`.
 
-- `public/_headers`（Netlify / Cloudflare Pages）：`Origin-Agent-Cluster: ?1`
-- `vercel.json`（Vercel）：同上响应头
-- 自建服务器请务必携带该响应头。
+## Documentation
 
-## 📄 License
+- [docs/plan.md](docs/plan.md) — product/engineering plan
+- [docs/phase1.md](docs/phase1.md) — pre-submission review and fixes
+- [docs/SUBMISSION.md](docs/SUBMISSION.md) — Devpost copy and the 3-minute video script
 
-MIT
+## License
+
+[MIT](LICENSE)

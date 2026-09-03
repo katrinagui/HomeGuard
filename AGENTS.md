@@ -1,16 +1,24 @@
-# WebMCP 项目工作目录
+# WebMCP 项目工作目录 — HomeGuard
 
-本项目目标是开发一个 WebMCP（`document.modelContext` / `navigator.modelContext`）智能体原生 Web 应用，构思方案见对话记录或 README（待创建）。
+**HomeGuard**（英文全称 *HomeGuard — An Agent-Native Smart-Home Emergency Drill*）是一个基于 WebMCP（`document.modelContext` / `navigator.modelContext`）的智能体原生智能家居应急演习模拟器。当前状态：MVP 完成 + Phase 1 修复完成，双语 UI（中/英）已上线。
 
-## 已安装的 agent skills（位于 `skills/`）
+## 仓库结构
 
-1. **`skills/webmcpify/`** — 端到端把 Web 应用改造成 agent-ready：盘点应用 → 提出工具清单（需人工批准）→ 集成 → 真实浏览器验证 → 自愈修复。用法："webmcpify"、"add WebMCP"。
-2. **`skills/webmcp/`** — WebMCP 集成的实现与调试参考：命令式工具注册（`registerTool`）、声明式 HTML 表单标注、agent 触发的表单流程、Chrome 预览版行为验证与故障排查。含 API 参考、兼容性说明和目标定位脚本（`scripts/find-webmcp-targets.mjs`）。
+- `src/` — 应用源码（`i18n/` 双语词典与 locale store；`sim/` 引擎；`mcp/` 工具注册；`ui/` 组件）
+- `tests/` — Vitest 行为测试（`npm test`，14 条）
+- `docs/` — `plan.md`（计划书）、`phase1.md`（审查与修复）、`SUBMISSION.md`（Devpost 文案与视频脚本）
+- `skills/` — 已安装的 agent skills（`webmcp` 实现与调试参考、`webmcpify` 改造工作流），开发 WebMCP 相关代码前先读对应 SKILL.md
+- `public/_headers`、`vercel.json`、`vite.config.ts` — `Origin-Agent-Cluster: ?1` 响应头（WebMCP 必需）
+- 根目录 `README.md`（英文）/ `README.zh-CN.md`（中文）
 
-开发任何 WebMCP 集成代码前，先读取对应的 SKILL.md。
+## 关键设计约定
+
+- **人机同路径**：UI 按钮与工具 handler 调用同一批 store action；`actor` 字段区分来源。
+- **语言分层**：agent 契约（工具描述/Schema/返回/store 消息/设备日志）为英文；UI 文案经 `src/i18n` 双语切换；事件数据携带 `Msg`（key + params）在渲染时本地化。
+- **阶段门卫与断电原子性**在 store 层强制，改动前先读 `tests/behavior.test.ts` 了解不变量。
 
 ## 环境要点
 
 - WebMCP 在 ChatGPT 应用内浏览器中原生可用；Chrome 需开启 `chrome://flags/#enable-webmcp-testing`。
-- 非 WebMCP 浏览器可用 `@mcp-b/webmcp-polyfill` 兜底。
-- 提交物要求（OpenAI WebMCP Challenge，截止 2026-09-03 13:00 PT）：项目描述 + 可运行的上架应用 + 公开开源仓库 + ≤3 分钟演示视频。
+- 非 WebMCP 浏览器回退到 `@mcp-b/webmcp-polyfill`（注意：它不传执行参数、`executeTool` 需完整 RegisteredTool 对象——详见 `skills/webmcp/references/compatibility.md`）。
+- 提交物要求（OpenAI WebMCP Challenge）：项目描述 + 可运行的上架应用 + 公开开源仓库 + ≤3 分钟演示视频。

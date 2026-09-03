@@ -3,13 +3,23 @@
 // agent tool calls produce identical state transitions and log entries.
 // The store is the final authority: phase gates and breaker constraints
 // are enforced here, not only in the UI.
+//
+// Language split: ActionResult messages and tool-call details that reach the
+// agent are English (the agent contract); events destined for the event log
+// carry localized Msg objects — see src/i18n.
 
 import { create } from 'zustand';
 import type { DeviceId, HouseEvent, HouseState, ToolCallRecord } from './sim/house';
 import { createInitialHouse, MAINS_POWERED_DEVICES, SPOILED_FOOD_PENALTY } from './sim/house';
 import { tick } from './sim/engine';
+import type { Msg } from './i18n';
 
 export type ConfirmationAction = 'shut_off_main_valve' | 'kill_main_breaker';
+
+const DESTRUCTIVE_LABELS: Record<ConfirmationAction, { zh: string; en: string }> = {
+  shut_off_main_valve: { zh: '关闭总水阀', en: 'Shut off main valve' },
+  kill_main_breaker: { zh: '拉下总电闸', en: 'Kill main breaker' },
+};
 
 export interface PendingConfirmation {
   action: ConfirmationAction;
@@ -27,8 +37,8 @@ export interface ActionResult {
 
 /** Mutating actions are only allowed while the exercise is active. */
 function phaseGateError(phase: HouseState['scenario']['phase']): string | null {
-  if (phase === 'idle') return '演习尚未开始：请先在页面上点击「开始演习」。';
-  if (phase === 'resolved') return '演习已结束：本工具仅供复盘查看，不能再改变房屋状态。';
+  if (phase === 'idle') return 'The drill has not started yet. Click "Start the drill" on the page first.';
+  if (phase === 'resolved') return 'The drill is over — tools are read-only for review now.';
   return null;
 }
 
@@ -36,7 +46,7 @@ interface HomeGuardStore {
   house: HouseState;
   pendingConfirmation: PendingConfirmation | null;
   mcpStatus: McpStatus;
-  mcpDetail: string;
+  mcpDetail: string | Msg;
 
   startExercise: () => void;
   tickOnce: (dtSec: number) => void;
@@ -51,9 +61,9 @@ interface HomeGuardStore {
   confirmPending: () => void;
   rejectPending: () => void;
 
-  logEvent: (kind: HouseEvent['kind'], text: string) => void;
+  logEvent: (kind: HouseEvent['kind'], msg: Msg) => void;
   logToolCall: (record: Omit<ToolCallRecord, 't'>) => void;
-  setMcpStatus: (status: McpStatus, detail: string) => void;
+  setMcpStatus: (status: McpStatus, detail: string | Msg) => void;
 
   getHouse: () => HouseState;
 }
@@ -62,7 +72,7 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
   house: createInitialHouse(),
   pendingConfirmation: null,
   mcpStatus: 'registering',
-  mcpDetail: '正在检测 WebMCP 支持…',
+  mcpDetail: 'Detecting WebMCP support…',
 
   startExercise: () => {
     const { house } = get();
@@ -71,7 +81,7 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
       house: {
         ...s.house,
         scenario: { ...s.house.scenario, phase: 'active' },
-        events: [...s.house.events, { t: 0, kind: 'system', text: '演习开始，房屋状态进入实时监控。' }],
+        events: [...s.house.events, { t: 0, kind: 'system', msg: { key: 'event.start' } }],
       },
     }));
   },
@@ -109,23 +119,26 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
 
     const device = house.devices[deviceId];
     if (!device) {
-      return { ok: false, message: `未找到设备 "${deviceId}"。可用设备：${Object.keys(house.devices).join(', ')}。` };
+      return {
+        ok: false,
+        message: `Device "${deviceId}" not found. Available devices: ${Object.keys(house.devices).join(', ')}.`,
+      };
     }
     if (!device.toggleable) {
       return {
         ok: false,
-        message: `"${device.name}" 不支持直接开关。总水阀请用 shut_off_main_valve，总电闸请用 kill_main_breaker。`,
+        message: `"${device.name}" cannot be toggled directly. Use shut_off_main_valve for the main valve, or kill_main_breaker for the main breaker.`,
       };
     }
     if (on && house.scenario.breakerOff && MAINS_POWERED_DEVICES.includes(deviceId)) {
       return {
         ok: false,
-        message: `总电闸已拉下，"${device.name}" 所在市电回路无电，无法开启。请先恢复供电（本演习不模拟合闸）。`,
+        message: `The main breaker is off — "${device.name}" is on a mains circuit and cannot be turned on.`,
       };
     }
     // Idempotent: no state change, no log entry when the target state holds.
     if (device.on === on) {
-      return { ok: true, message: `${device.name} 已经是${on ? '开启' : '关闭'}状态。` };
+      return { ok: true, message: `${device.name} is already ${on ? 'on' : 'off'}.` };
     }
     set((s) => ({
       house: {
@@ -136,12 +149,12 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
           {
             t: s.house.scenario.elapsed,
             kind: actor,
-            text: `${actor === 'agent' ? '智能体' : '用户'}将「${device.name}」${on ? '开启' : '关闭'}。`,
+            msg: { key: on ? 'event.deviceOn' : 'event.deviceOff', params: { nameZh: device.nameZh, nameEn: device.name } },
           },
         ],
       },
     }));
-    return { ok: true, message: `${device.name} 已${on ? '开启' : '关闭'}。` };
+    return { ok: true, message: `${device.name} turned ${on ? 'on' : 'off'}.` };
   },
 
   setThermostat: (targetC, actor) => {
@@ -150,10 +163,10 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
     if (phaseError) return { ok: false, message: phaseError };
 
     if (!Number.isFinite(targetC) || targetC < 16 || targetC > 30) {
-      return { ok: false, message: '目标温度必须在 16–30°C 之间，请修正后重试。' };
+      return { ok: false, message: 'Target temperature must be between 16 and 30°C.' };
     }
     if (house.scenario.breakerOff) {
-      return { ok: false, message: '总电闸已拉下，温控器离线，无法设定温度。' };
+      return { ok: false, message: 'The main breaker is off — the thermostat is offline.' };
     }
     set((s) => ({
       house: {
@@ -164,12 +177,12 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
           {
             t: s.house.scenario.elapsed,
             kind: actor,
-            text: `${actor === 'agent' ? '智能体' : '用户'}将温控目标设为 ${targetC}°C。`,
+            msg: { key: 'event.thermostat', params: { targetC } },
           },
         ],
       },
     }));
-    return { ok: true, message: `温控目标已设为 ${targetC}°C。` };
+    return { ok: true, message: `Thermostat target set to ${targetC}°C.` };
   },
 
   requestDestructive: (action, actor) => {
@@ -182,14 +195,18 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
       return Promise.resolve('rejected');
     }
     return new Promise((resolve) => {
-      const label = action === 'shut_off_main_valve' ? '关闭总水阀' : '拉下总电闸';
+      const labels = DESTRUCTIVE_LABELS[action];
       set((s) => ({
         pendingConfirmation: { action, actor, resolve },
         house: {
           ...s.house,
           events: [
             ...s.house.events,
-            { t: s.house.scenario.elapsed, kind: actor === 'agent' ? 'agent' : 'human', text: `请求${label}，等待用户确认。` },
+            {
+              t: s.house.scenario.elapsed,
+              kind: actor,
+              msg: { key: 'event.request', params: { labelZh: labels.zh, labelEn: labels.en } },
+            },
           ],
         },
       }));
@@ -208,7 +225,7 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
           ...s.house,
           scenario: { ...s.house.scenario, valveShut: true },
           devices: { ...s.house.devices, main_valve: { ...s.house.devices.main_valve, on: false } },
-          events: [...s.house.events, { t: now, kind: 'system', text: '总水阀已关闭，供水切断，漏水停止。' }],
+          events: [...s.house.events, { t: now, kind: 'system', msg: { key: 'event.valveShut' } }],
         },
       }));
     } else {
@@ -235,7 +252,7 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
             {
               t: now,
               kind: 'system',
-              text: `总电闸已拉下：全屋断电，冰箱等市电设备全部停止（食材报废，损失 +${SPOILED_FOOD_PENALTY} 分）。`,
+              msg: { key: 'event.breakerOff', params: { penalty: SPOILED_FOOD_PENALTY } },
             },
           ],
         },
@@ -247,20 +264,27 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
   rejectPending: () => {
     const pending = get().pendingConfirmation;
     if (!pending) return;
-    const label = pending.action === 'shut_off_main_valve' ? '关闭总水阀' : '拉下总电闸';
+    const labels = DESTRUCTIVE_LABELS[pending.action];
     set((s) => ({
       pendingConfirmation: null,
       house: {
         ...s.house,
-        events: [...s.house.events, { t: s.house.scenario.elapsed, kind: 'system', text: `用户拒绝了「${label}」。` }],
+        events: [
+          ...s.house.events,
+          {
+            t: s.house.scenario.elapsed,
+            kind: 'system',
+            msg: { key: 'event.rejected', params: { labelZh: labels.zh, labelEn: labels.en } },
+          },
+        ],
       },
     }));
     pending.resolve('rejected');
   },
 
-  logEvent: (kind, text) => {
+  logEvent: (kind, msg) => {
     set((s) => ({
-      house: { ...s.house, events: [...s.house.events, { t: s.house.scenario.elapsed, kind, text }] },
+      house: { ...s.house, events: [...s.house.events, { t: s.house.scenario.elapsed, kind, msg }] },
     }));
   },
 

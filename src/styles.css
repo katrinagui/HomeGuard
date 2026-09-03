@@ -70,6 +70,17 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .mcp-chip.polyfill::before { background: var(--amber); }
 .mcp-chip.error::before { background: var(--red); }
 
+.lang-switch {
+  display: inline-flex; border: 1px solid var(--line-strong);
+  border-radius: 999px; overflow: hidden; background: var(--card);
+}
+.lang-switch button {
+  border: 0; border-radius: 0; background: transparent;
+  padding: 4px 12px; font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+}
+.lang-switch button:hover:not(:disabled) { background: var(--paper-deep); color: var(--ink); }
+.lang-switch button.active { background: var(--ink); color: var(--paper); }
+
 /* ---------- hazard stripe + banners ---------- */
 
 .hazard {
@@ -215,6 +226,7 @@ button.big { font-size: 15px; padding: 11px 32px; }
 
 .start-backdrop { background: var(--paper); }
 .modal.start { border: 0; box-shadow: none; background: transparent; max-width: 580px; }
+.start-lang { margin-bottom: 22px; }
 .modal.start .hazard { margin: 0 0 28px; }
 .modal.start h1 {
   margin: 0; font-family: var(--font-display); font-weight: 400;

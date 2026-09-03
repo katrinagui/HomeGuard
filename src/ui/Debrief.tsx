@@ -1,5 +1,6 @@
 import { useHouse } from '../store';
 import { starRating } from '../sim/engine';
+import { translate, tMsg, useLocale } from '../i18n';
 
 function fmtClock(sec: number): string {
   return `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
@@ -8,9 +9,11 @@ function fmtClock(sec: number): string {
 export function Debrief() {
   const house = useHouse((s) => s.house);
   const reset = useHouse((s) => s.reset);
+  const locale = useLocale((s) => s.locale);
+  const tr = (key: string) => translate(key, locale);
 
   const { damageScore, elapsed } = house.scenario;
-  const { stars, label } = starRating(damageScore);
+  const { stars, grade } = starRating(damageScore);
   const agentCalls = house.toolCalls.filter((c) => c.actor === 'agent');
   const humanActions = house.events.filter((e) => e.kind === 'human').length;
   const gradeClass = stars === 3 ? '' : stars === 2 ? 'mid' : 'low';
@@ -19,34 +22,39 @@ export function Debrief() {
   return (
     <div className="modal-backdrop">
       <div className="modal debrief">
-        <p className="kicker-ink">AFTER-ACTION REPORT</p>
-        <h1>险情解除</h1>
+        <p className="kicker-ink">{tr('ui.debrief.kicker')}</p>
+        <h1>{tr('ui.debrief.title')}</h1>
         <div className={`grade-stamp ${gradeClass}`}>
-          {starMarks} {label}
+          {starMarks} {tr(grade)}
         </div>
 
         <div className="debrief-stats">
           <div className="debrief-stat">
             <span className="debrief-num">{Math.round(damageScore)}</span>
-            <span className="debrief-label">损失分数（越低越好）</span>
+            <span className="debrief-label">{tr('ui.debrief.damage')}</span>
           </div>
           <div className="debrief-stat">
             <span className="debrief-num">{fmtClock(elapsed)}</span>
-            <span className="debrief-label">处置用时</span>
+            <span className="debrief-label">{tr('ui.debrief.time')}</span>
           </div>
           <div className="debrief-stat">
             <span className="debrief-num">{agentCalls.length} / {humanActions}</span>
-            <span className="debrief-label">智能体调用 / 人工操作</span>
+            <span className="debrief-label">{tr('ui.debrief.calls')}</span>
           </div>
         </div>
 
-        <h2>智能体操作复盘 · AGENT TIMELINE</h2>
+        <h2>{tr('ui.debrief.timelineHead')}</h2>
         {agentCalls.length === 0 ? (
-          <p className="muted">本次全程人工处置，智能体未执行任何工具调用。再玩一次，试试召唤 ChatGPT。</p>
+          <p className="muted">{tr('ui.debrief.none')}</p>
         ) : (
           <table className="timeline">
             <thead>
-              <tr><th>时间</th><th>工具</th><th>输入</th><th>结果</th></tr>
+              <tr>
+                <th>{tr('ui.debrief.thTime')}</th>
+                <th>{tr('ui.debrief.thTool')}</th>
+                <th>{tr('ui.debrief.thInput')}</th>
+                <th>{tr('ui.debrief.thResult')}</th>
+              </tr>
             </thead>
             <tbody>
               {agentCalls.map((c, i) => (
@@ -54,7 +62,10 @@ export function Debrief() {
                   <td>t+{c.t}s</td>
                   <td><code>{c.tool}</code></td>
                   <td>{Object.keys(c.input).length ? JSON.stringify(c.input) : '—'}</td>
-                  <td>{outcomeLabel(c.outcome)}{c.detail ? ` · ${c.detail}` : ''}</td>
+                  <td>
+                    {tr(`ui.debrief.outcome.${c.outcome === 'pending_confirmation' ? 'pending' : c.outcome}`)}
+                    {c.detail ? ` · ${tMsg(c.detail, locale)}` : ''}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -62,21 +73,13 @@ export function Debrief() {
         )}
 
         <p className="debrief-coda">
-          今天你真实的家做不到这一点——你的管家智能体看不见你家的状态。
-          WebMCP 正在改变它：<code>document.modelContext</code>
+          {locale === 'zh'
+            ? '今天你真实的家做不到这一点——你的管家智能体看不见你家的状态。WebMCP 正在改变它：'
+            : 'Your real home cannot do this today — your butler agent cannot even see your house. WebMCP is changing that: '}
+          <code>document.modelContext</code>
         </p>
-        <button className="primary big" onClick={reset}>再来一次</button>
+        <button className="primary big" onClick={reset}>{tr('ui.debrief.again')}</button>
       </div>
     </div>
   );
-}
-
-function outcomeLabel(outcome: string): string {
-  switch (outcome) {
-    case 'ok': return '成功';
-    case 'pending_confirmation': return '等待确认';
-    case 'rejected': return '被拒绝';
-    case 'error': return '出错';
-    default: return outcome;
-  }
 }

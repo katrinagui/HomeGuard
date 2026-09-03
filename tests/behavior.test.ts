@@ -57,7 +57,7 @@ describe('set_device_power idempotency (P0-02)', () => {
     const before = useHouse.getState().house;
     const result = store.setDevicePower('nonexistent' as never, true, 'agent');
     expect(result.ok).toBe(false);
-    expect(result.message).toContain('未找到设备');
+    expect(result.message).toContain('not found');
     expect(useHouse.getState().house).toBe(before);
   });
 
@@ -98,7 +98,7 @@ describe('main breaker atomicity (P0-03)', () => {
     store.confirmPending();
     const result = store.setDevicePower('thermostat', true, 'agent');
     expect(result.ok).toBe(false);
-    expect(result.message).toContain('总电闸已拉下');
+    expect(result.message).toContain('cannot be turned on');
     expect(useHouse.getState().house.devices.thermostat.on).toBe(false);
   });
 });
@@ -108,14 +108,14 @@ describe('phase gating (P0-04)', () => {
     const store = useHouse.getState();
     const power = store.setDevicePower('kitchen_light', true, 'agent');
     expect(power.ok).toBe(false);
-    expect(power.message).toContain('演习尚未开始');
+    expect(power.message).toContain('has not started yet');
     const thermo = store.setThermostat(24, 'agent');
     expect(thermo.ok).toBe(false);
-    expect(thermo.message).toContain('演习尚未开始');
-    await expect(store.requestDestructive('shut_off_main_valve', 'agent')).rejects.toThrow('演习尚未开始');
+    expect(thermo.message).toContain('has not started yet');
+    await expect(store.requestDestructive('shut_off_main_valve', 'agent')).rejects.toThrow('has not started yet');
     await expect(
       tool('shut_off_main_valve').execute({}, {}),
-    ).rejects.toThrow('演习尚未开始');
+    ).rejects.toThrow('has not started yet');
   });
 
   it('blocks mutations after the exercise is resolved', async () => {
@@ -124,10 +124,10 @@ describe('phase gating (P0-04)', () => {
     expect(useHouse.getState().house.scenario.phase).toBe('resolved');
     const power = store.setDevicePower('kitchen_light', true, 'agent');
     expect(power.ok).toBe(false);
-    expect(power.message).toContain('演习已结束');
+    expect(power.message).toContain('drill is over');
     // set_device_power throws synchronously
     expect(() => tool('set_device_power').execute({ deviceId: 'kitchen_light', on: true }, {})).toThrow(
-      '演习已结束',
+      'drill is over',
     );
   });
 
@@ -138,7 +138,7 @@ describe('phase gating (P0-04)', () => {
     const status = await tool('get_house_status').execute({}, {});
     expect(status).toMatchObject({ phase: 'active' });
     const log = await tool('get_device_log').execute({ deviceId: 'main_valve' }, {});
-    expect(JSON.stringify(log)).toContain('爆裂');
+    expect(JSON.stringify(log)).toContain('burst');
   });
 });
 
@@ -195,7 +195,7 @@ describe('confirmation flow (P0-04 / cancellation)', () => {
     const promise = tool('shut_off_main_valve').execute({}, { signal: controller.signal });
     expect(useHouse.getState().pendingConfirmation?.action).toBe('shut_off_main_valve');
     controller.abort();
-    await expect(promise).rejects.toThrow('取消');
+    await expect(promise).rejects.toThrow('cancelled');
     expect(useHouse.getState().pendingConfirmation).toBeNull();
   });
 
@@ -205,6 +205,6 @@ describe('confirmation flow (P0-04 / cancellation)', () => {
     const promise = tool('shut_off_main_valve').execute({});
     expect(useHouse.getState().pendingConfirmation).not.toBeNull();
     store.confirmPending();
-    await expect(promise).resolves.toContain('总水阀已关闭');
+    await expect(promise).resolves.toContain('Main valve shut');
   });
 });
