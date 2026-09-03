@@ -4,7 +4,7 @@
 
 A smart home that breaks on purpose. **HomeGuard** is a training simulator built on the open [WebMCP](https://github.com/webmachinelearning/webmcp) standard (`document.modelContext`): when a kitchen pipe bursts, a ChatGPT agent diagnoses the fault through structured tools registered on the page — while every destructive action (shutting the main valve, killing the breaker) is suspended until the human explicitly approves it on a visible confirmation card.
 
-> **Live Demo**: _TBD_ · **Demo Video**: _TBD_ · **License**: MIT
+> **Live Demo**: <https://katrinagui.github.io/HomeGuard/> · **Demo Video**: _TBD_ · **License**: MIT
 
 ## Why
 
@@ -95,6 +95,12 @@ WebMCP requires the page to run in an **origin agent cluster**, otherwise `regis
 - `vite.config.ts` — local dev & preview servers
 
 Self-hosting: make sure your server sends `Origin-Agent-Cluster: ?1`.
+
+The GitHub Pages deployment (the Live Demo above) cannot send custom headers, so it runs in polyfill demo mode — the full in-page experience works, while page-external agent discovery is best on a header-supporting host. To (re)deploy Pages:
+
+```bash
+npm run deploy:pages     # builds with --base=/HomeGuard/ and pushes dist/ to gh-pages
+```
 
 ## Documentation
 

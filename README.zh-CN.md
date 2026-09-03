@@ -4,7 +4,7 @@
 
 一间会"出事"的模拟智能家居。**HomeGuard** 建立在开放标准 [WebMCP](https://github.com/webmachinelearning/webmcp)（`document.modelContext`）之上：当厨房水管爆裂，ChatGPT 智能体通过页面注册的结构化工具诊断故障——而每一个危险操作（关总水阀、拉总电闸）都会挂起，直到你在可见的确认卡片上亲自批准。
 
-> **在线演示**: _待填_ · **演示视频**: _待填_ · **许可证**: MIT
+> **在线演示**: <https://katrinagui.github.io/HomeGuard/> · **演示视频**: _待填_ · **许可证**: MIT
 
 ## 为什么做这个
 
@@ -95,6 +95,12 @@ WebMCP 要求页面运行在 **origin agent cluster** 中，否则 `registerTool
 - `vite.config.ts` —— 本地 dev / preview 服务器
 
 自建服务器请确保返回 `Origin-Agent-Cluster: ?1`。
+
+GitHub Pages 部署（即上面的在线演示）无法自定义响应头，因此运行在 polyfill 演示模式——页内完整体验可用，页面外的智能体发现在支持自定义头的平台（Netlify/Cloudflare/Vercel）上体验最佳。重新部署 Pages：
+
+```bash
+npm run deploy:pages     # 以 --base=/HomeGuard/ 构建并推送 dist/ 到 gh-pages 分支
+```
 
 ## 文档
 

@@ -54,8 +54,8 @@ An agent-native smart-home emergency drill: an AI butler diagnoses a burst pipe 
 
 ## 三、提交前检查清单（Phase 1 §9 对应）
 
-- [ ] Git 仓库初始化并推送到 GitHub 公开仓库（命令见下）
-- [ ] 部署 Live URL（Netlify/Cloudflare/Vercel 任一，`_headers`/`vercel.json` 已就绪）
+- [x] Git 仓库初始化并推送到 GitHub 公开仓库（katrinagui/HomeGuard）
+- [x] 部署 Live URL：https://katrinagui.github.io/HomeGuard/ （GitHub Pages，polyfill 演示模式；可选升级到 Netlify/Cloudflare 以获得原生支持）
 - [ ] 无登录状态验证 Live URL 返回 200 且带 `Origin-Agent-Cluster: ?1`
 - [ ] 全新环境 `npm install && npm run build` 复现成功
 - [ ] 在 ChatGPT 内置浏览器录制真实工具调用视频并上传 YouTube

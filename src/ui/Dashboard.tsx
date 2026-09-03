@@ -23,7 +23,8 @@ export function Dashboard() {
   const kitchen = house.rooms.kitchen;
   const exerciseActive = s.phase === 'active';
   const leakRunning = s.leakActive && !s.valveShut;
-  const heaterRunning = s.heaterActive && !s.heaterOff;
+  // Heater is "running" while the fault is active and the thermostat still has power.
+  const heaterRunning = s.heaterActive && house.devices.thermostat.on;
   const showWarningBanner = mcpStatus === 'unsupported' || mcpStatus === 'error';
   const deviceName = (d: { name: string; nameZh: string }) => (locale === 'zh' ? d.nameZh : d.name);
 
