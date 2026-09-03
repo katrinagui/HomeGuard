@@ -2,8 +2,8 @@
 // The store is the final authority, so testing store actions + tool handlers
 // covers both human clicks and agent tool calls.
 
-import { beforeEach, describe, expect, it } from 'vitest';
-import { useHouse } from '../src/store';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CONFIRMATION_TIMEOUT_MS, useHouse } from '../src/store';
 import { buildTools } from '../src/mcp/tools';
 import { MAINS_POWERED_DEVICES, SPOILED_FOOD_PENALTY } from '../src/sim/house';
 import type { ToolDefinition } from '../src/mcp/tools';
@@ -139,6 +139,92 @@ describe('phase gating (P0-04)', () => {
     expect(status).toMatchObject({ phase: 'active' });
     const log = await tool('get_device_log').execute({ deviceId: 'main_valve' }, {});
     expect(JSON.stringify(log)).toContain('burst');
+  });
+});
+
+describe('strict parameter validation (R1)', () => {
+  it('rejects on:"false" instead of coercing it to true', () => {
+    const store = useHouse.getState();
+    store.startExercise();
+    // smart_lock starts ON; the invalid call must leave it exactly as it was
+    expect(() =>
+      tool('set_device_power').execute({ deviceId: 'smart_lock', on: 'false' }, {}),
+    ).toThrow('must be a boolean');
+    expect(useHouse.getState().house.devices.smart_lock.on).toBe(true);
+  });
+
+  it('rejects a missing on without touching the device', () => {
+    const store = useHouse.getState();
+    store.startExercise();
+    expect(() =>
+      tool('set_device_power').execute({ deviceId: 'smart_lock' }, {}),
+    ).toThrow('must be a boolean');
+    expect(useHouse.getState().house.devices.smart_lock.on).toBe(true);
+  });
+
+  it('rejects targetC:"20" as a string instead of coercing', () => {
+    const store = useHouse.getState();
+    store.startExercise();
+    expect(() => tool('set_thermostat').execute({ targetC: '20' }, {})).toThrow('must be a number');
+    expect(useHouse.getState().house.scenario.thermostatTargetC).toBe(22);
+  });
+
+  it('rejects a missing targetC', () => {
+    const store = useHouse.getState();
+    store.startExercise();
+    expect(() => tool('set_thermostat').execute({}, {})).toThrow('must be a number');
+    expect(useHouse.getState().house.scenario.thermostatTargetC).toBe(22);
+  });
+});
+
+describe('confirmation expiry (R1)', () => {
+  it('expires the request, clears the card, and changes nothing', async () => {
+    vi.useFakeTimers();
+    try {
+      const store = useHouse.getState();
+      store.startExercise();
+      const promise = store.requestDestructive('shut_off_main_valve', 'agent');
+      const advance = vi.advanceTimersByTimeAsync(CONFIRMATION_TIMEOUT_MS);
+      await expect(promise).resolves.toBe('expired');
+      await advance;
+      expect(useHouse.getState().pendingConfirmation).toBeNull();
+      expect(useHouse.getState().house.scenario.valveShut).toBe(false);
+      expect(useHouse.getState().house.devices.main_valve.on).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('surfaces expiry to the agent as a corrective error, not a fake rejection', async () => {
+    vi.useFakeTimers();
+    try {
+      const store = useHouse.getState();
+      store.startExercise();
+      const promise = tool('shut_off_main_valve').execute({}, {});
+      const advance = vi.advanceTimersByTimeAsync(CONFIRMATION_TIMEOUT_MS);
+      await expect(promise).rejects.toThrow('expired');
+      await advance;
+      const calls = useHouse.getState().house.toolCalls;
+      expect(calls[calls.length - 1].outcome).toBe('expired');
+      expect(useHouse.getState().house.scenario.valveShut).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a user decision after expiry is a no-op (request id mismatch)', async () => {
+    vi.useFakeTimers();
+    try {
+      const store = useHouse.getState();
+      store.startExercise();
+      const promise = store.requestDestructive('shut_off_main_valve', 'agent');
+      await vi.advanceTimersByTimeAsync(CONFIRMATION_TIMEOUT_MS);
+      await expect(promise).resolves.toBe('expired');
+      store.confirmPending(); // stale card must not act
+      expect(useHouse.getState().house.scenario.valveShut).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

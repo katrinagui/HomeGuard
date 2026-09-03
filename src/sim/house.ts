@@ -56,7 +56,7 @@ export interface ToolCallRecord {
   t: number;
   tool: string;
   input: Record<string, unknown>;
-  outcome: 'ok' | 'pending_confirmation' | 'rejected' | 'error';
+  outcome: 'ok' | 'pending_confirmation' | 'rejected' | 'expired' | 'error';
   /** agent-facing detail is a plain English string; human-facing uses Msg */
   detail: string | Msg;
   actor: 'human' | 'agent';

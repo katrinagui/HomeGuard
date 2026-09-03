@@ -218,6 +218,11 @@ button.big { font-size: 15px; padding: 11px 32px; }
   color: var(--red); font-size: 12.5px;
   border-top: 1px dashed var(--line); padding-top: 10px; margin-top: 14px;
 }
+.request-id { font-family: var(--font-mono); }
+.modal-expiry {
+  color: var(--muted); font-family: var(--font-mono); font-size: 12px;
+  margin: 12px 0 0; font-variant-numeric: tabular-nums;
+}
 .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 .modal-actions .primary { background: var(--red); border-color: var(--red); color: #fff; }
 .modal-actions .primary:hover:not(:disabled) { background: var(--red-deep); border-color: var(--red-deep); }
@@ -274,6 +279,7 @@ button.big { font-size: 15px; padding: 11px 32px; }
 }
 .timeline td { padding: 7px 8px; border-bottom: 1px dashed var(--line); vertical-align: top; }
 .tl-rejected td, .tl-error td { color: var(--red); }
+.tl-expired td { color: var(--amber); }
 .muted { color: var(--muted); }
 
 .debrief-coda {

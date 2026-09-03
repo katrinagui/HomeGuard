@@ -83,7 +83,17 @@ export function buildTools(): ToolDefinition[] {
       },
       annotations: { readOnlyHint: true },
       execute: (input) => {
-        const deviceId = String(input.deviceId ?? '');
+        if (typeof input.deviceId !== 'string' || input.deviceId === '') {
+          useHouse.getState().logToolCall({
+            tool: 'get_device_log',
+            input,
+            outcome: 'error',
+            detail: 'Parameter "deviceId" is required (a device ID string).',
+            actor: 'agent',
+          });
+          return 'Parameter "deviceId" is required (a device ID string).';
+        }
+        const deviceId = input.deviceId;
         const house = useHouse.getState().house;
         if (!(deviceId in house.devices)) {
           const message = `Device "${deviceId}" not found. Available devices: ${Object.keys(house.devices).join(', ')}.`;
@@ -133,8 +143,19 @@ export function buildTools(): ToolDefinition[] {
         required: ['deviceId', 'on'],
       },
       execute: (input) => {
-        const deviceId = String(input.deviceId ?? '') as DeviceId;
-        const on = Boolean(input.on);
+        // Strict runtime validation: the WebMCP runtime does not validate the
+        // JSON Schema for the page, so no coercion ever happens here.
+        if (typeof input.on !== 'boolean') {
+          const received = input.on === undefined ? 'missing' : JSON.stringify(input.on) ?? String(input.on);
+          throw new Error(
+            `Parameter "on" is required and must be a boolean (true or false). Received: ${received}. No state was changed.`,
+          );
+        }
+        if (typeof input.deviceId !== 'string' || input.deviceId === '') {
+          throw new Error('Parameter "deviceId" is required (a device ID string).');
+        }
+        const deviceId = input.deviceId as DeviceId;
+        const on = input.on;
         const result = useHouse.getState().setDevicePower(deviceId, on, 'agent');
         useHouse.getState().logToolCall({
           tool: 'set_device_power',
@@ -159,7 +180,14 @@ export function buildTools(): ToolDefinition[] {
         required: ['targetC'],
       },
       execute: (input) => {
-        const targetC = Number(input.targetC);
+        // Strict runtime validation: reject strings like "20" instead of coercing.
+        if (typeof input.targetC !== 'number' || !Number.isFinite(input.targetC)) {
+          const received = input.targetC === undefined ? 'missing' : JSON.stringify(input.targetC) ?? String(input.targetC);
+          throw new Error(
+            `Parameter "targetC" is required and must be a number between 16 and 30. Received: ${received}. No state was changed.`,
+          );
+        }
+        const targetC = input.targetC;
         const result = useHouse.getState().setThermostat(targetC, 'agent');
         useHouse.getState().logToolCall({
           tool: 'set_thermostat',
@@ -194,6 +222,16 @@ export function buildTools(): ToolDefinition[] {
           useHouse.getState().requestDestructive('shut_off_main_valve', 'agent'),
           options?.signal,
         );
+        if (outcome === 'expired') {
+          useHouse.getState().logToolCall({
+            tool: 'shut_off_main_valve',
+            input: {},
+            outcome: 'expired',
+            detail: { key: 'tl.expired' },
+            actor: 'agent',
+          });
+          throw new Error('The confirmation request expired before the user decided. Call the tool again to raise a fresh confirmation card.');
+        }
         if (outcome !== 'confirmed') {
           useHouse.getState().logToolCall({
             tool: 'shut_off_main_valve',
@@ -236,6 +274,16 @@ export function buildTools(): ToolDefinition[] {
           useHouse.getState().requestDestructive('kill_main_breaker', 'agent'),
           options?.signal,
         );
+        if (outcome === 'expired') {
+          useHouse.getState().logToolCall({
+            tool: 'kill_main_breaker',
+            input: {},
+            outcome: 'expired',
+            detail: { key: 'tl.expired' },
+            actor: 'agent',
+          });
+          throw new Error('The confirmation request expired before the user decided. Call the tool again to raise a fresh confirmation card.');
+        }
         if (outcome !== 'confirmed') {
           useHouse.getState().logToolCall({
             tool: 'kill_main_breaker',
@@ -288,9 +336,9 @@ function destructiveGuard(action: 'shut_off_main_valve' | 'kill_main_breaker'): 
  * native Chrome 153+ always does.
  */
 function withAbort(
-  promise: Promise<'confirmed' | 'rejected'>,
+  promise: Promise<'confirmed' | 'rejected' | 'expired'>,
   signal?: AbortSignal,
-): Promise<'confirmed' | 'rejected'> {
+): Promise<'confirmed' | 'rejected' | 'expired'> {
   if (!signal) return promise;
   if (signal.aborted) {
     useHouse.getState().rejectPending();

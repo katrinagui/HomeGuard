@@ -16,12 +16,21 @@ import type { Msg } from './i18n';
 
 export type ConfirmationAction = 'shut_off_main_valve' | 'kill_main_breaker';
 
+/**
+ * A destructive request dies on its own after this long, even if the caller
+ * never aborts and the user never decides — the confirmation card must not
+ * stay actionable forever.
+ */
+export const CONFIRMATION_TIMEOUT_MS = 30_000;
+
 const DESTRUCTIVE_LABELS: Record<ConfirmationAction, { zh: string; en: string }> = {
   shut_off_main_valve: { zh: '关闭总水阀', en: 'Shut off main valve' },
   kill_main_breaker: { zh: '拉下总电闸', en: 'Kill main breaker' },
 };
 
 export interface PendingConfirmation {
+  /** correlation id for this confirmation round-trip */
+  id: string;
   action: ConfirmationAction;
   actor: 'human' | 'agent';
   /** resolves with 'confirmed' | 'rejected' once the user acts */
@@ -56,8 +65,9 @@ interface HomeGuardStore {
   setDevicePower: (deviceId: DeviceId, on: boolean, actor: 'human' | 'agent') => ActionResult;
   setThermostat: (targetC: number, actor: 'human' | 'agent') => ActionResult;
 
-  /** Destructive actions: returns a promise resolved by the visible confirm card. */
-  requestDestructive: (action: ConfirmationAction, actor: 'human' | 'agent') => Promise<'confirmed' | 'rejected'>;
+  /** Destructive actions: returns a promise resolved by the visible confirm card,
+   *  or 'expired' when the request outlives CONFIRMATION_TIMEOUT_MS. */
+  requestDestructive: (action: ConfirmationAction, actor: 'human' | 'agent') => Promise<'confirmed' | 'rejected' | 'expired'>;
   confirmPending: () => void;
   rejectPending: () => void;
 
@@ -195,9 +205,10 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
       return Promise.resolve('rejected');
     }
     return new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2, 10);
       const labels = DESTRUCTIVE_LABELS[action];
       set((s) => ({
-        pendingConfirmation: { action, actor, resolve },
+        pendingConfirmation: { id, action, actor, resolve },
         house: {
           ...s.house,
           events: [
@@ -210,6 +221,27 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
           ],
         },
       }));
+      // Independent expiry: the card must never stay actionable after the
+      // caller's own channel has timed out (or never aborts, polyfill-style).
+      setTimeout(() => {
+        const pending = get().pendingConfirmation;
+        if (!pending || pending.id !== id) return;
+        set((s) => ({
+          pendingConfirmation: null,
+          house: {
+            ...s.house,
+            events: [
+              ...s.house.events,
+              {
+                t: s.house.scenario.elapsed,
+                kind: 'system',
+                msg: { key: 'event.confirmExpired', params: { seconds: Math.round(CONFIRMATION_TIMEOUT_MS / 1000) } },
+              },
+            ],
+          },
+        }));
+        resolve('expired');
+      }, CONFIRMATION_TIMEOUT_MS);
     });
   },
 

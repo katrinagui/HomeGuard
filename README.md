@@ -29,7 +29,8 @@ When a pipe bursts, a homeowner faces a wall of device panels and cryptic logs a
 
 ## Safety model
 
-- **Confirmation queue**: a destructive tool's `execute()` returns a promise resolved by the on-page confirmation card; the agent's abort signal clears the card if the call is cancelled.
+- **Confirmation queue**: a destructive tool's `execute()` returns a promise resolved by the on-page confirmation card; the agent's abort signal clears the card if the call is cancelled. An independent 30-second expiry (with a request id shown on the card) guarantees the card can never stay actionable after the caller's channel dies.
+- **Strict parameter validation**: handlers never coerce — `on` must be a real boolean and `targetC` a real number, or the tool returns a corrective error without touching state (the current WebMCP runtime does not validate JSON Schema for the page).
 - **Phase gating** enforced in the store (the final authority, since agents bypass buttons): `idle` rejects all mutations, `active` allows everything, `resolved` is read-only for review.
 - **Atomic state**: pulling the breaker shuts down every mains device and applies the fridge penalty exactly once, in the same update that resolves the tool.
 - **One code path for humans and agents**: UI buttons and tool handlers call the same store actions; the debrief timeline tags every entry with its actor.

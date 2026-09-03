@@ -56,6 +56,7 @@ export const STRINGS = {
     'ui.confirm.breakerApprove': '确认拉下总电闸',
     'ui.confirm.reject': '拒绝',
     'ui.confirm.agentSource': '来源：ChatGPT 智能体请求执行此操作',
+    'ui.confirm.expires': '{seconds} 秒内未确认将自动失效',
 
     'ui.debrief.kicker': 'AFTER-ACTION REPORT',
     'ui.debrief.title': '险情解除',
@@ -73,6 +74,7 @@ export const STRINGS = {
     'ui.debrief.outcome.ok': '成功',
     'ui.debrief.outcome.pending': '等待确认',
     'ui.debrief.outcome.rejected': '被拒绝',
+    'ui.debrief.outcome.expired': '已超时失效',
     'ui.debrief.outcome.error': '出错',
 
     'grade.gold': '金牌管家',
@@ -98,6 +100,9 @@ export const STRINGS = {
     'tl.approved': '用户批准，总水阀已关闭',
     'tl.breakerApproved': '用户批准，总电闸已拉下',
     'tl.rejected': '用户拒绝了本次操作',
+    'tl.expired': '等待超时，未获用户确认',
+
+    'event.confirmExpired': '确认请求超时失效（{seconds} 秒），房屋状态未改变。',
   },
 
   en: {
@@ -153,6 +158,7 @@ export const STRINGS = {
     'ui.confirm.breakerApprove': 'Confirm: kill breaker',
     'ui.confirm.reject': 'Reject',
     'ui.confirm.agentSource': 'Requested by the ChatGPT agent',
+    'ui.confirm.expires': 'Auto-expires in {seconds} s',
 
     'ui.debrief.kicker': 'AFTER-ACTION REPORT',
     'ui.debrief.title': 'Emergency resolved',
@@ -170,6 +176,7 @@ export const STRINGS = {
     'ui.debrief.outcome.ok': 'OK',
     'ui.debrief.outcome.pending': 'Awaiting confirmation',
     'ui.debrief.outcome.rejected': 'Rejected',
+    'ui.debrief.outcome.expired': 'Expired',
     'ui.debrief.outcome.error': 'Error',
 
     'grade.gold': 'Gold-medal butler',
@@ -196,5 +203,8 @@ export const STRINGS = {
     'tl.approved': 'user approved — main valve shut',
     'tl.breakerApproved': 'user approved — main breaker off',
     'tl.rejected': 'rejected by user',
+    'tl.expired': 'confirmation timed out — no user decision',
+
+    'event.confirmExpired': 'Confirmation request expired after {seconds} s; nothing changed.',
   },
 } as const;

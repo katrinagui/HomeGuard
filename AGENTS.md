@@ -14,6 +14,7 @@
 ## 关键设计约定
 
 - **人机同路径**：UI 按钮与工具 handler 调用同一批 store action；`actor` 字段区分来源。
+- **参数严格校验**：工具 handler 禁止 `Boolean()`/`Number()` 强转（WebMCP 运行时不替页面校验 Schema）；参数缺失或类型错误立即抛纠正性错误、不改状态。确认卡片带 requestId 与 30 秒独立超时，过期后工具抛错而非伪造"用户拒绝"。
 - **语言分层**：agent 契约（工具描述/Schema/返回/store 消息/设备日志）为英文；UI 文案经 `src/i18n` 双语切换；事件数据携带 `Msg`（key + params）在渲染时本地化。
 - **阶段门卫与断电原子性**在 store 层强制，改动前先读 `tests/behavior.test.ts` 了解不变量。
 
