@@ -115,6 +115,10 @@ export function setupWebMcp(): WebMcpHandle {
         if (!tool) throw new Error(`unknown tool: ${name}`);
         return tool.execute(input, { signal: new AbortController().signal });
       },
+      startDrill: (scenarioId?: 'kitchen_leak' | 'heater_runaway') => {
+        useHouse.getState().reset();
+        useHouse.getState().startExercise(scenarioId);
+      },
       tools: tools.map((t) => t.name),
     };
 

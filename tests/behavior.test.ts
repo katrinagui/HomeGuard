@@ -252,6 +252,44 @@ describe('water and valve behavior (P0-04 regression)', () => {
   });
 });
 
+describe('heater runaway scenario', () => {
+  it('runs end to end using only the existing tools', async () => {
+    const store = useHouse.getState();
+    store.startExercise('heater_runaway');
+    store.tickOnce(9);
+    const status = (await tool('get_house_status').execute({}, {})) as { activeFaults: string[] };
+    expect(status.activeFaults.join(' ')).toContain('thermostat');
+
+    const d0 = useHouse.getState().house.scenario.damageScore;
+    store.tickOnce(2);
+    expect(useHouse.getState().house.scenario.damageScore).toBeGreaterThan(d0);
+
+    // the fix uses the same generic tool the leak scenario uses
+    await tool('set_device_power').execute({ deviceId: 'thermostat', on: false }, {});
+    expect(useHouse.getState().house.devices.thermostat.on).toBe(false);
+
+    for (let i = 0; i < 90 && useHouse.getState().house.scenario.phase !== 'resolved'; i += 1) {
+      store.tickOnce(1);
+    }
+    expect(useHouse.getState().house.scenario.phase).toBe('resolved');
+  });
+
+  it('keeps burning until the thermostat is powered down', () => {
+    const store = useHouse.getState();
+    store.startExercise('heater_runaway');
+    for (let i = 0; i < 30; i += 1) store.tickOnce(1);
+    expect(useHouse.getState().house.scenario.phase).toBe('active');
+  });
+
+  it('defaults to the kitchen leak scenario', async () => {
+    const store = useHouse.getState();
+    store.startExercise();
+    store.tickOnce(9);
+    const status = (await tool('get_house_status').execute({}, {})) as { activeFaults: string[] };
+    expect(status.activeFaults.join(' ')).toContain('main valve');
+  });
+});
+
 describe('confirmation flow (P0-04 / cancellation)', () => {
   it('user rejection leaves the state untouched', async () => {
     const store = useHouse.getState();

@@ -1,11 +1,11 @@
 # WebMCP 项目工作目录 — HomeGuard
 
-**HomeGuard**（英文全称 *HomeGuard — An Agent-Native Smart-Home Emergency Drill*）是一个基于 WebMCP（`document.modelContext` / `navigator.modelContext`）的智能体原生智能家居应急演习模拟器。当前状态：MVP 完成 + Phase 1 修复完成，双语 UI（中/英）已上线。
+**HomeGuard**（英文全称 *HomeGuard — An Agent-Native Smart-Home Emergency Drill*）是一个基于 WebMCP（`document.modelContext` / `navigator.modelContext`）的智能体原生智能家居应急演习模拟器。当前状态：MVP + Phase 1 修复完成，双语 UI（中/英）、两个随机场景（厨房爆管 / 暖气失控）、`#learn` 智能体视角页均已上线。
 
 ## 仓库结构
 
-- `src/` — 应用源码（`i18n/` 双语词典与 locale store；`sim/` 引擎；`mcp/` 工具注册；`ui/` 组件）
-- `tests/` — Vitest 行为测试（`npm test`，14 条）
+- `src/` — 应用源码（`i18n/` 双语词典与 locale store；`sim/` 引擎与两个场景；`mcp/` 工具注册；`ui/` 组件，含 `LearnPage.tsx` 的 `#learn` 智能体视角页）
+- `tests/` — Vitest 行为测试（`npm test`，24 条）
 - `docs/` — `plan.md`（计划书）、`phase1.md`（审查与修复）、`SUBMISSION.md`（Devpost 文案与视频脚本）
 - `skills/` — 已安装的 agent skills（`webmcp` 实现与调试参考、`webmcpify` 改造工作流），开发 WebMCP 相关代码前先读对应 SKILL.md
 - `public/_headers`、`vercel.json`、`vite.config.ts` — `Origin-Agent-Cluster: ?1` 响应头（WebMCP 必需）

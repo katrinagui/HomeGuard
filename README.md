@@ -27,6 +27,19 @@ When a pipe bursts, a homeowner faces a wall of device panels and cryptic logs a
 
 \* The current draft spec's `annotations` only support `readOnlyHint` / `untrustedContentHint`, so destructive intent is declared in the tool `title`/`description` and enforced by the visible confirmation flow.
 
+## Two scenarios, one tool set
+
+Every drill randomly draws one of two household faults:
+
+- **Kitchen pipe burst** — water rises, shut the main valve (destructive, confirmed).
+- **Heater runaway** — the thermostat relay welds closed and room temperature climbs; power the thermostat down with the *same* generic `set_device_power` tool.
+
+No new tools per script: the tool set models the home, not a storyline — which is exactly the composability WebMCP is meant to enable.
+
+### Agent view (#learn)
+
+Open **`/#learn`** (also linked from the start poster and the dashboard footer) to see the page the way an agent does: the six registered tools with their descriptions and read-only annotations, plus a live `get_house_status` JSON payload. The start poster also offers a one-click **starter prompt** to paste into ChatGPT.
+
 ## Safety model
 
 - **Confirmation queue**: a destructive tool's `execute()` returns a promise resolved by the on-page confirmation card; the agent's abort signal clears the card if the call is cancelled. An independent 30-second expiry (with a request id shown on the card) guarantees the card can never stay actionable after the caller's channel dies.
@@ -40,7 +53,7 @@ When a pipe bursts, a homeowner faces a wall of device panels and cryptic logs a
 ```bash
 npm install
 npm run dev        # dev server, http://localhost:5173
-npm test           # Vitest behavior suite (14 tests)
+npm test           # Vitest behavior suite (24 tests)
 npm run build      # production build to dist/
 npm run preview    # serve the production build
 ```
@@ -61,13 +74,13 @@ The UI is bilingual (中文 / English) via the toggle in the header — persiste
 ```
 src/
 ├── i18n/        # string dictionary, locale store, t()/tMsg() helpers
-├── sim/         # house model + tick engine (pure functions)
+├── sim/         # house model + tick engine (two scenarios, pure functions)
 ├── store.ts     # single Zustand store — UI and tools share one set of actions
 ├── mcp/
 │   ├── tools.ts     # tool definitions, destructive guard, confirmation-queue bridge
 │   └── register.ts  # document → navigator → polyfill fallback + lifecycle cleanup
-└── ui/          # dashboard, confirm card, event log, start poster, debrief report
-tests/           # Vitest behavior suite
+└── ui/          # dashboard, confirm card, event log, start poster, debrief, #learn
+tests/           # Vitest behavior suite (24 tests)
 docs/            # design plan, phase reviews, submission materials
 ```
 

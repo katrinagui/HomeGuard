@@ -7,7 +7,7 @@
 // shown to humans in the debrief carry localized Msg objects where needed.
 
 import { useHouse } from '../store';
-import type { DeviceId } from '../sim/house';
+import type { DeviceId, HouseState } from '../sim/house';
 import { deviceLogLines } from '../sim/engine';
 
 export interface ToolDefinition {
@@ -23,6 +23,22 @@ export interface ToolDefinition {
 }
 
 const SETTABLE_DEVICE_IDS = ['kitchen_light', 'living_room_light', 'robot_vacuum', 'thermostat', 'smart_lock'] as const;
+
+/** Scenario-aware fault list the agent should act on. */
+function collectActiveFaults(house: HouseState): string[] {
+  const faults: string[] = [];
+  const s = house.scenario;
+  if (s.id === 'kitchen_leak' && s.leakActive && !s.valveShut) {
+    faults.push('Kitchen supply pipe burst, standing water rising. Shut the main valve (shut_off_main_valve).');
+  }
+  if (s.id === 'heater_runaway' && s.heaterActive && !s.heaterOff) {
+    faults.push(
+      'Central thermostat relay welded closed, room temperature rising fast. Power the thermostat down ' +
+        '(set_device_power deviceId="thermostat" on=false).',
+    );
+  }
+  return faults;
+}
 
 export function buildTools(): ToolDefinition[] {
   return [
@@ -59,9 +75,7 @@ export function buildTools(): ToolDefinition[] {
             name: d.name,
             on: d.on,
           })),
-          activeFaults: house.scenario.leakActive && !house.scenario.valveShut
-            ? ['Kitchen supply pipe burst, standing water rising. Shut the main valve (shut_off_main_valve).']
-            : [],
+          activeFaults: collectActiveFaults(house),
         };
       },
     },

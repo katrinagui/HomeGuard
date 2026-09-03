@@ -62,16 +62,30 @@ export interface ToolCallRecord {
   actor: 'human' | 'agent';
 }
 
+export type ScenarioId = 'kitchen_leak' | 'heater_runaway';
+
+/** Display names for the drill scenarios (event-log params carry both). */
+export const SCENARIOS: Record<ScenarioId, { zh: string; en: string }> = {
+  kitchen_leak: { zh: '厨房爆管', en: 'Kitchen pipe burst' },
+  heater_runaway: { zh: '暖气失控', en: 'Heater runaway' },
+};
+
 export interface ScenarioState {
+  /** which drill this round runs */
+  id: ScenarioId;
   /** elapsed seconds since exercise start; clock only runs while phase === 'active' */
   elapsed: number;
   phase: 'idle' | 'active' | 'resolved';
   /** loss points: standing water, spoiled food, avoidable emergency call, … */
   damageScore: number;
-  /** true once the leak scenario has been triggered by the tick engine */
+  /** kitchen_leak: true once the burst has been triggered by the tick engine */
   leakActive: boolean;
-  /** set once the main valve has been shut; water then recedes */
+  /** kitchen_leak: set once the main valve has been shut; water then recedes */
   valveShut: boolean;
+  /** heater_runaway: true once the welded relay has been triggered */
+  heaterActive: boolean;
+  /** heater_runaway: set once the thermostat has been powered down */
+  heaterOff: boolean;
   breakerOff: boolean;
   /** target temperature for the central thermostat (°C) */
   thermostatTargetC: number;
@@ -89,6 +103,9 @@ export const DAMAGE_PER_CM_PER_SEC = 2; // loss points while standing water sits
 export const SPOILED_FOOD_PENALTY = 120; // breaker off with fridge loaded
 export const LEAK_FLOW_CM_PER_SEC = 0.6; // water rises while valve open
 export const DRAIN_CM_PER_SEC = 1.2; // water recedes once valve shut
+export const HEAT_RATE_C_PER_SEC = 0.5; // heater_runaway: living room heats while relay welded
+export const COOL_RATE_C_PER_SEC = 0.2; // heater_runaway: rooms cool once thermostat is down
+export const OVERHEAT_DAMAGE_PER_DEG_PER_SEC = 1.2; // loss points per degree above 24°C
 
 /** Devices that lose power the moment the main breaker is pulled. */
 export const MAINS_POWERED_DEVICES: DeviceId[] = [
@@ -99,7 +116,7 @@ export const MAINS_POWERED_DEVICES: DeviceId[] = [
   'thermostat',
 ];
 
-export function createInitialHouse(): HouseState {
+export function createInitialHouse(scenarioId: ScenarioId = 'kitchen_leak'): HouseState {
   return {
     rooms: {
       kitchen: { id: 'kitchen', name: 'Kitchen', nameZh: '厨房', temperatureC: 22.5, humidityPct: 48, waterLevelCm: 0 },
@@ -120,11 +137,14 @@ export function createInitialHouse(): HouseState {
     ],
     toolCalls: [],
     scenario: {
+      id: scenarioId,
       elapsed: 0,
       phase: 'idle',
       damageScore: 0,
       leakActive: false,
       valveShut: false,
+      heaterActive: false,
+      heaterOff: false,
       breakerOff: false,
       thermostatTargetC: 22,
     },

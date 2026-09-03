@@ -10,7 +10,7 @@
 
 import { create } from 'zustand';
 import type { DeviceId, HouseEvent, HouseState, ToolCallRecord } from './sim/house';
-import { createInitialHouse, MAINS_POWERED_DEVICES, SPOILED_FOOD_PENALTY } from './sim/house';
+import { createInitialHouse, MAINS_POWERED_DEVICES, SPOILED_FOOD_PENALTY, SCENARIOS, type ScenarioId } from './sim/house';
 import { tick } from './sim/engine';
 import type { Msg } from './i18n';
 
@@ -57,7 +57,7 @@ interface HomeGuardStore {
   mcpStatus: McpStatus;
   mcpDetail: string | Msg;
 
-  startExercise: () => void;
+  startExercise: (scenarioId?: ScenarioId) => void;
   tickOnce: (dtSec: number) => void;
   reset: () => void;
 
@@ -84,16 +84,22 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
   mcpStatus: 'registering',
   mcpDetail: 'Detecting WebMCP support…',
 
-  startExercise: () => {
+  startExercise: (scenarioId: ScenarioId = 'kitchen_leak') => {
     const { house } = get();
     if (house.scenario.phase !== 'idle') return;
-    set((s) => ({
-      house: {
-        ...s.house,
-        scenario: { ...s.house.scenario, phase: 'active' },
-        events: [...s.house.events, { t: 0, kind: 'system', msg: { key: 'event.start' } }],
+    // Idle-phase mutations are phase-gated to read-only, so the state is
+    // still pristine — rebuild it fresh with the chosen scenario.
+    const fresh = createInitialHouse(scenarioId);
+    fresh.scenario.phase = 'active';
+    fresh.events.push({
+      t: 0,
+      kind: 'system',
+      msg: {
+        key: 'event.start',
+        params: { scenarioZh: SCENARIOS[scenarioId].zh, scenarioEn: SCENARIOS[scenarioId].en },
       },
-    }));
+    });
+    set({ house: fresh });
   },
 
   tickOnce: (dtSec) => {

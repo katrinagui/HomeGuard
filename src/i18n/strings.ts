@@ -18,6 +18,8 @@ export const STRINGS = {
     'ui.banner.emergency': '紧急',
     'ui.banner.alarmText':
       '厨房供水管爆裂，积水 {water} cm 且持续上涨。可召唤 ChatGPT 智能体协助，或亲自处理。',
+    'ui.banner.heaterText':
+      '中央温控器继电器触点粘死，室温 {temp}°C 且持续升高。可召唤 ChatGPT 智能体协助，或亲自处理。',
 
     'ui.card.room': 'ROOM',
     'ui.card.mains': 'MAINS',
@@ -38,12 +40,22 @@ export const STRINGS = {
 
     'ui.start.sub': '智能屋抢救行动 · 应急处置演习',
     'ui.start.body':
-      '你家的厨房供水管即将爆裂。你可以亲自抢修，也可以召唤 ChatGPT 智能体担任物业管家——它通过本页注册的 WebMCP 工具读取全屋状态、翻查设备日志、定位故障，并在执行任何危险操作前，把决定权交还给你。',
+      '每次演习会随机抽一个家庭故障——可能是厨房供水管爆裂，也可能是暖气失控。你可以亲自抢修，也可以召唤 ChatGPT 智能体担任物业管家——它通过本页注册的 WebMCP 工具读取全屋状态、翻查设备日志、定位故障，并在执行任何危险操作前，把决定权交还给你。',
     'ui.start.hint.ready': 'WebMCP 已就绪：智能体可以看到本页注册的全部工具。',
     'ui.start.hint.polyfill': '当前浏览器不支持原生 WebMCP，已启用 polyfill 演示模式。',
     'ui.start.hint.registering': '正在检测 WebMCP…',
     'ui.start.hint.unavailable': 'WebMCP 不可用：你仍可手动游玩，但智能体无法看到本页工具。',
     'ui.start.begin': '开始演习',
+    'ui.start.copy': '复制给 ChatGPT 的开场指令',
+    'ui.start.copied': '已复制，粘贴给 ChatGPT 即可',
+    'ui.start.prompt':
+      '我家的智能家居支持 WebMCP。请打开本页，用页面注册的工具检查全屋状态，找到正在发生的故障并处理——任何危险操作前先请求我确认。',
+    'ui.start.learn': '看看智能体看到了什么 →',
+    'ui.learn.title': '智能体看到了什么',
+    'ui.learn.sub': '本页通过 document.modelContext 注册的六件工具——智能体拿到的就是这份清单',
+    'ui.learn.back': '返回演习',
+    'ui.learn.sampleHead': 'get_house_status 的实时返回（智能体收到的 JSON）',
+    'ui.learn.readonly': '只读',
 
     'ui.confirm.kicker': '危险操作 · REQUIRES CONFIRMATION',
     'ui.confirm.valveTitle': '关闭总水阀',
@@ -85,9 +97,11 @@ export const STRINGS = {
       '当前浏览器不支持 WebMCP。可用 Chrome 并开启 chrome://flags/#enable-webmcp-testing，或在 ChatGPT 应用内打开本页。',
 
     'event.init': 'HomeGuard 已接管本屋。一切正常。',
-    'event.start': '演习开始，房屋状态进入实时监控。',
+    'event.start': '「{scenarioZh}」演习开始，房屋状态进入实时监控。',
     'event.leak': '厨房水浸传感器触发：供水管爆裂，积水持续上涨。',
+    'event.heater': '暖气失控：中央温控器继电器触点粘死，室温持续升高。',
     'event.resolved': '厨房积水已排净，险情解除。',
+    'event.resolvedHeater': '室温已回落至安全范围，险情解除。',
     'event.deviceOn': '{nameZh}已开启。',
     'event.deviceOff': '{nameZh}已关闭。',
     'event.thermostat': '温控目标已设为 {target}°C。',
@@ -140,12 +154,22 @@ export const STRINGS = {
 
     'ui.start.sub': 'AN AGENT-NATIVE SMART-HOME EMERGENCY DRILL',
     'ui.start.body':
-      'A pipe in your kitchen is about to burst. Fix it yourself — or summon a ChatGPT agent as your property butler. Through the WebMCP tools registered on this page it reads the whole-house state, digs through device logs, pinpoints the fault, and hands every dangerous decision back to you before acting.',
+      'Every drill draws one random household fault — a burst kitchen pipe, or a runaway heater. Fix it yourself, or summon a ChatGPT agent as your property butler. Through the WebMCP tools registered on this page it reads the whole-house state, digs through device logs, pinpoints the fault, and hands every dangerous decision back to you before acting.',
     'ui.start.hint.ready': 'WebMCP is ready: the agent can see every tool registered on this page.',
     'ui.start.hint.polyfill': 'Native WebMCP is unavailable here; polyfill demo mode is on.',
     'ui.start.hint.registering': 'Detecting WebMCP…',
     'ui.start.hint.unavailable': 'WebMCP unavailable: you can still play manually, but agents cannot see the tools.',
     'ui.start.begin': 'Start the drill',
+    'ui.start.copy': 'Copy the ChatGPT starter prompt',
+    'ui.start.copied': 'Copied — paste it into ChatGPT',
+    'ui.start.prompt':
+      'My smart home speaks WebMCP. Open this page, use the tools registered on it to check the whole-house state, find the ongoing fault and handle it — ask for my confirmation before any destructive action.',
+    'ui.start.learn': 'See what the agent sees →',
+    'ui.learn.title': 'What the agent sees',
+    'ui.learn.sub': 'The six tools registered on this page via document.modelContext — this list is exactly what the agent receives',
+    'ui.learn.back': 'Back to the drill',
+    'ui.learn.sampleHead': 'Live get_house_status payload (the JSON the agent receives)',
+    'ui.learn.readonly': 'read-only',
 
     'ui.confirm.kicker': 'DESTRUCTIVE ACTION · REQUIRES CONFIRMATION',
     'ui.confirm.valveTitle': 'Shut off the main valve',
@@ -187,9 +211,11 @@ export const STRINGS = {
       'This browser does not support WebMCP. Use Chrome with chrome://flags/#enable-webmcp-testing, or open this page inside ChatGPT.',
 
     'event.init': 'HomeGuard online. All systems normal.',
-    'event.start': 'Drill started — the house is now live.',
+    'event.start': '"{scenarioEn}" drill started — the house is now live.',
     'event.leak': 'Kitchen water sensor triggered: supply pipe burst, water rising.',
+    'event.heater': 'Heater runaway: the thermostat relay is welded closed, room temperature rising.',
     'event.resolved': 'Standing water drained. Emergency resolved.',
+    'event.resolvedHeater': 'Room temperature back in the safe range. Emergency resolved.',
     'event.deviceOn': '{nameEn} switched on.',
     'event.deviceOff': '{nameEn} switched off.',
     'event.thermostat': 'Thermostat target set to {target}°C.',

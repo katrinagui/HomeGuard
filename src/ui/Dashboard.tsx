@@ -23,6 +23,7 @@ export function Dashboard() {
   const kitchen = house.rooms.kitchen;
   const exerciseActive = s.phase === 'active';
   const leakRunning = s.leakActive && !s.valveShut;
+  const heaterRunning = s.heaterActive && !s.heaterOff;
   const showWarningBanner = mcpStatus === 'unsupported' || mcpStatus === 'error';
   const deviceName = (d: { name: string; nameZh: string }) => (locale === 'zh' ? d.nameZh : d.name);
 
@@ -58,7 +59,7 @@ export function Dashboard() {
         </div>
       </header>
 
-      {leakRunning && <div className="hazard" aria-hidden="true" />}
+      {(leakRunning || heaterRunning) && <div className="hazard" aria-hidden="true" />}
 
       {showWarningBanner && (
         <div className="banner warn">
@@ -71,6 +72,13 @@ export function Dashboard() {
         <div className="banner alarm">
           <span className="banner-tag">{tr('ui.banner.emergency')}</span>
           <span>{tr('ui.banner.alarmText', { water: kitchen.waterLevelCm.toFixed(1) })}</span>
+        </div>
+      )}
+
+      {heaterRunning && (
+        <div className="banner alarm">
+          <span className="banner-tag">{tr('ui.banner.emergency')}</span>
+          <span>{tr('ui.banner.heaterText', { temp: house.rooms.living_room.temperatureC.toFixed(1) })}</span>
         </div>
       )}
 
@@ -157,6 +165,10 @@ export function Dashboard() {
 
         <EventLog />
       </main>
+
+      <footer className="page-footer">
+        <a className="learn-link" href="#learn">{tr('ui.start.learn')}</a>
+      </footer>
     </>
   );
 }

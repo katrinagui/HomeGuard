@@ -27,6 +27,19 @@
 
 \* 当前草案的 `annotations` 仅支持 `readOnlyHint` / `untrustedContentHint`，破坏性语义写入工具 `title`/`description`，并由可见确认流程强制执行。
 
+## 两个场景，一套工具
+
+每次演习随机抽取一个家庭故障：
+
+- **厨房爆管**——积水上涨，关总水阀（破坏性，需确认）；
+- **暖气失控**——温控器继电器触点粘死、室温攀升，用**同一个通用工具** `set_device_power` 关掉温控器即可。
+
+不为剧本加工具：工具集建模的是"家"本身，而不是某个剧情——这正是 WebMCP 想要的可组合性。
+
+### 智能体视角（#learn）
+
+打开 **`/#learn`**（开始海报与仪表盘页脚也有入口），像智能体一样看本页：六件注册工具的描述与只读注解，以及 `get_house_status` 的实时 JSON。开始海报上还有一键**复制开场指令**，粘贴给 ChatGPT 即可开演。
+
 ## 安全模型
 
 - **确认队列**：破坏性工具的 `execute()` 返回由页面确认卡片 resolve 的 Promise；智能体取消信号会同步清除卡片。另有**独立的 30 秒超时**（卡片上显示 requestId），保证调用方通道死掉后卡片绝不会一直可操作。
@@ -40,7 +53,7 @@
 ```bash
 npm install
 npm run dev        # 开发服务器 http://localhost:5173
-npm test           # Vitest 行为测试（14 条）
+npm test           # Vitest 行为测试（24 条）
 npm run build      # 生产构建到 dist/
 npm run preview    # 预览生产构建
 ```
@@ -61,12 +74,12 @@ npm run preview    # 预览生产构建
 ```
 src/
 ├── i18n/        # 字符串词典、locale store、t()/tMsg() 助手
-├── sim/         # 房屋数据模型 + tick 游戏引擎（纯函数）
+├── sim/         # 房屋数据模型 + tick 引擎（两个场景，纯函数）
 ├── store.ts     # 单一 Zustand store——UI 与工具共用同一批 action
 ├── mcp/
 │   ├── tools.ts     # 工具定义、破坏性守卫、确认队列桥
 │   └── register.ts  # document → navigator → polyfill 三级回退 + 生命周期清理
-└── ui/          # 仪表盘、确认卡片、事件日志、开始海报、结算报表
+└── ui/          # 仪表盘、确认卡片、事件日志、开始海报、结算报表、#learn
 tests/           # Vitest 行为测试
 docs/            # 设计方案、阶段审查、提交材料
 ```
