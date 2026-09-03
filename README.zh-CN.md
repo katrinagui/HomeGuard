@@ -58,6 +58,8 @@ npm run build      # 生产构建到 dist/
 npm run preview    # 预览生产构建
 ```
 
+> **注意**：应用必须通过 HTTP 访问——直接双击打开 `index.html`（file:// 协议）无法加载 ES module，只会看到一页静态提示。
+
 ### 让智能体"看见"工具
 
 - **ChatGPT 应用内浏览器**：原生支持 WebMCP，直接打开部署地址。

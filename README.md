@@ -58,6 +58,8 @@ npm run build      # production build to dist/
 npm run preview    # serve the production build
 ```
 
+> **Note:** the app must be served over HTTP — opening `index.html` directly from disk (file://) cannot run ES-module bundles and will show a static fallback notice instead.
+
 ### Letting an agent see the tools
 
 - **ChatGPT's in-app browser**: native WebMCP support — just open the deployed URL.

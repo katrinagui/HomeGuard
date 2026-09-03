@@ -65,8 +65,8 @@ An agent-native smart-home emergency drill: an AI butler diagnoses a burst pipe 
 ### 公开仓库操作步骤（需你在 GitHub 上操作）
 
 ```bash
-cd D:\greathing\AI_Project\AI_coding\WebMCP
-git remote add origin git@github.com:<你的用户名>/homeguard-webmcp.git
+cd HomeGuard
+git remote add origin https://github.com/katrinagui/HomeGuard.git
 git push -u origin main
 ```
 
