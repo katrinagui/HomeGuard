@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/store.ts","./src/i18n/index.ts","./src/i18n/strings.ts","./src/mcp/register.ts","./src/mcp/tools.ts","./src/sim/engine.ts","./src/sim/house.ts","./src/ui/confirmcard.tsx","./src/ui/dashboard.tsx","./src/ui/debrief.tsx","./src/ui/eventlog.tsx","./src/ui/learnpage.tsx","./src/ui/startoverlay.tsx"],"version":"5.6.3"}
