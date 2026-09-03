@@ -42,7 +42,7 @@
 
 ## 安全模型
 
-- **确认队列**：破坏性工具的 `execute()` 返回由页面确认卡片 resolve 的 Promise；智能体取消信号会同步清除卡片。另有**独立的 30 秒超时**（卡片上显示 requestId），保证调用方通道死掉后卡片绝不会一直可操作。
+- **确认队列**：破坏性工具的 `execute()` 返回由页面确认卡片 resolve 的 Promise；智能体取消信号会同步清除卡片。另有**独立的 20 秒超时**（卡片上显示 requestId），保证调用方通道死掉后卡片绝不会一直可操作。
 - **参数严格校验**：handler 绝不强转——`on` 必须是真 boolean、`targetC` 必须是真 number，否则返回纠正性错误且不改变任何状态（当前 WebMCP 运行时不会替页面校验 JSON Schema）。
 - **阶段门卫**（在 store 层强制——智能体不经过按钮，store 才是最终边界）：`idle` 拒绝一切变更、`active` 全部可用、`resolved` 只读复盘。
 - **原子状态**：拉总电闸在同一次更新中关闭所有市电设备并只计一次冰箱罚分，工具返回时 UI 已一致。
@@ -83,7 +83,6 @@ src/
 │   └── register.ts  # document → navigator → polyfill 三级回退 + 生命周期清理
 └── ui/          # 仪表盘、确认卡片、事件日志、开始海报、结算报表、#learn
 tests/           # Vitest 行为测试
-docs/            # 设计方案、阶段审查、提交材料
 ```
 
 ## 部署注意
@@ -96,7 +95,7 @@ WebMCP 要求页面运行在 **origin agent cluster** 中，否则 `registerTool
 
 自建服务器请确保返回 `Origin-Agent-Cluster: ?1`。
 
-GitHub Pages 部署（即上面的在线演示）无法自定义响应头，因此运行在 polyfill 演示模式——页内完整体验可用，页面外的智能体发现在支持自定义头的平台（Netlify/Cloudflare/Vercel）上体验最佳。重新部署 Pages：
+GitHub Pages 部署（即上面的在线演示）无法自定义响应头，能否原生连接取决于浏览器——ChatGPT 应用内浏览器会直接原生连接，其余环境自动回退 polyfill 演示模式。要保证在所有浏览器都走原生路径，请部署在支持自定义响应头的平台（Netlify/Cloudflare/Vercel）。重新部署 Pages：
 
 ```bash
 npm run deploy:pages     # 以 --base=/HomeGuard/ 构建并推送 dist/ 到 gh-pages 分支

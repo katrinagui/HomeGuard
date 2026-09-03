@@ -288,6 +288,29 @@ describe('heater runaway scenario', () => {
     const status = (await tool('get_house_status').execute({}, {})) as { activeFaults: string[] };
     expect(status.activeFaults.join(' ')).toContain('main valve');
   });
+
+  it('stops advertising the fault once resolved (P0-01 regression)', async () => {
+    const store = useHouse.getState();
+    store.startExercise('heater_runaway');
+    store.tickOnce(9);
+    await tool('set_device_power').execute({ deviceId: 'thermostat', on: false }, {});
+    for (let i = 0; i < 90 && useHouse.getState().house.scenario.phase !== 'resolved'; i += 1) {
+      store.tickOnce(1);
+    }
+    expect(useHouse.getState().house.scenario.phase).toBe('resolved');
+    const status = (await tool('get_house_status').execute({}, {})) as { activeFaults: string[] };
+    expect(status.activeFaults).toEqual([]);
+  });
+
+  it('rejects unknown and missing deviceId by throwing (consistent error semantics)', () => {
+    const store = useHouse.getState();
+    store.startExercise();
+    // get_device_log throws synchronously
+    expect(() => tool('get_device_log').execute({ deviceId: 'nope' }, {})).toThrow('not found');
+    expect(() => tool('get_device_log').execute({}, {})).toThrow('deviceId');
+    const last = useHouse.getState().house.toolCalls.at(-1);
+    expect(last.outcome).toBe('error');
+  });
 });
 
 describe('confirmation flow (P0-04 / cancellation)', () => {

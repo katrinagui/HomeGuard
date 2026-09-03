@@ -18,7 +18,7 @@ Notes for humans and coding agents working on this repository.
 - **One code path for humans and agents**: UI buttons and tool handlers call the same store actions; `actor` marks the source in logs.
 - **Language split**: the agent contract (tool descriptions, schemas, return values, store messages, device logs) is English; UI copy is bilingual via `src/i18n`; events carry `Msg` objects (key + params) localized at render time.
 - **Strict parameter validation**: handlers never coerce (`Boolean()`/`Number()` are banned on tool input) — the WebMCP runtime does not validate JSON Schema for the page. Malformed calls throw corrective errors without touching state.
-- **Destructive actions**: routed through the confirmation card (requestId + independent 30 s expiry). Phase gates (`idle`/`active`/`resolved`) and breaker semantics are enforced in the store — the final authority.
+- **Destructive actions**: routed through the confirmation card (requestId + independent 20 s expiry). Phase gates (`idle`/`active`/`resolved`) and breaker semantics are enforced in the store — the final authority.
 - Change the invariants in `tests/behavior.test.ts` deliberately; `npm test` must stay green alongside `npm run build`.
 
 ## Environment notes

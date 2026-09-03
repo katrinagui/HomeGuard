@@ -42,7 +42,7 @@ Open **`/#learn`** (also linked from the start poster and the dashboard footer) 
 
 ## Safety model
 
-- **Confirmation queue**: a destructive tool's `execute()` returns a promise resolved by the on-page confirmation card; the agent's abort signal clears the card if the call is cancelled. An independent 30-second expiry (with a request id shown on the card) guarantees the card can never stay actionable after the caller's channel dies.
+- **Confirmation queue**: a destructive tool's `execute()` returns a promise resolved by the on-page confirmation card; the agent's abort signal clears the card if the call is cancelled. An independent 20-second expiry (with a request id shown on the card) guarantees the card can never stay actionable after the caller's channel dies.
 - **Strict parameter validation**: handlers never coerce — `on` must be a real boolean and `targetC` a real number, or the tool returns a corrective error without touching state (the current WebMCP runtime does not validate JSON Schema for the page).
 - **Phase gating** enforced in the store (the final authority, since agents bypass buttons): `idle` rejects all mutations, `active` allows everything, `resolved` is read-only for review.
 - **Atomic state**: pulling the breaker shuts down every mains device and applies the fridge penalty exactly once, in the same update that resolves the tool.
@@ -82,8 +82,7 @@ src/
 │   ├── tools.ts     # tool definitions, destructive guard, confirmation-queue bridge
 │   └── register.ts  # document → navigator → polyfill fallback + lifecycle cleanup
 └── ui/          # dashboard, confirm card, event log, start poster, debrief, #learn
-tests/           # Vitest behavior suite (24 tests)
-docs/            # design plan, phase reviews, submission materials
+tests/           # Vitest behavior suite
 ```
 
 ## Deployment notes
@@ -96,7 +95,7 @@ WebMCP requires the page to run in an **origin agent cluster**, otherwise `regis
 
 Self-hosting: make sure your server sends `Origin-Agent-Cluster: ?1`.
 
-The GitHub Pages deployment (the Live Demo above) cannot send custom headers, so it runs in polyfill demo mode — the full in-page experience works, while page-external agent discovery is best on a header-supporting host. To (re)deploy Pages:
+The GitHub Pages deployment (the Live Demo above) cannot send custom headers, so whether the page connects natively depends on the browser — ChatGPT's in-app browser accepts it natively, while other environments fall back to polyfill demo mode. For a guaranteed native path on every browser, host on a header-supporting platform (Netlify/Cloudflare/Vercel). To (re)deploy Pages:
 
 ```bash
 npm run deploy:pages     # builds with --base=/HomeGuard/ and pushes dist/ to gh-pages

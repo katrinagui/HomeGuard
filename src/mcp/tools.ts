@@ -31,7 +31,7 @@ function collectActiveFaults(house: HouseState): string[] {
   if (s.id === 'kitchen_leak' && s.leakActive && !s.valveShut) {
     faults.push('Kitchen supply pipe burst, standing water rising. Shut the main valve (shut_off_main_valve).');
   }
-  if (s.id === 'heater_runaway' && s.heaterActive && !s.heaterOff) {
+  if (s.id === 'heater_runaway' && s.heaterActive && house.devices.thermostat.on) {
     faults.push(
       'Central thermostat relay welded closed, room temperature rising fast. Power the thermostat down ' +
         '(set_device_power deviceId="thermostat" on=false).',
@@ -98,14 +98,15 @@ export function buildTools(): ToolDefinition[] {
       annotations: { readOnlyHint: true },
       execute: (input) => {
         if (typeof input.deviceId !== 'string' || input.deviceId === '') {
+          const message = 'Parameter "deviceId" is required (a device ID string).';
           useHouse.getState().logToolCall({
             tool: 'get_device_log',
             input,
             outcome: 'error',
-            detail: 'Parameter "deviceId" is required (a device ID string).',
+            detail: message,
             actor: 'agent',
           });
-          return 'Parameter "deviceId" is required (a device ID string).';
+          throw new Error(message);
         }
         const deviceId = input.deviceId;
         const house = useHouse.getState().house;
@@ -118,7 +119,7 @@ export function buildTools(): ToolDefinition[] {
             detail: message,
             actor: 'agent',
           });
-          return message;
+          throw new Error(message);
         }
         useHouse.getState().logToolCall({
           tool: 'get_device_log',

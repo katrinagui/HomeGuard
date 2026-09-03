@@ -84,8 +84,6 @@ export interface ScenarioState {
   valveShut: boolean;
   /** heater_runaway: true once the welded relay has been triggered */
   heaterActive: boolean;
-  /** heater_runaway: set once the thermostat has been powered down */
-  heaterOff: boolean;
   breakerOff: boolean;
   /** target temperature for the central thermostat (°C) */
   thermostatTargetC: number;
@@ -144,7 +142,6 @@ export function createInitialHouse(scenarioId: ScenarioId = 'kitchen_leak'): Hou
       leakActive: false,
       valveShut: false,
       heaterActive: false,
-      heaterOff: false,
       breakerOff: false,
       thermostatTargetC: 22,
     },

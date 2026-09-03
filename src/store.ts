@@ -19,9 +19,10 @@ export type ConfirmationAction = 'shut_off_main_valve' | 'kill_main_breaker';
 /**
  * A destructive request dies on its own after this long, even if the caller
  * never aborts and the user never decides — the confirmation card must not
- * stay actionable forever.
+ * stay actionable forever. 20 s so the business expiry always fires before
+ * an in-browser agent channel's own ~27 s timeout.
  */
-export const CONFIRMATION_TIMEOUT_MS = 30_000;
+export const CONFIRMATION_TIMEOUT_MS = 20_000;
 
 const DESTRUCTIVE_LABELS: Record<ConfirmationAction, { zh: string; en: string }> = {
   shut_off_main_valve: { zh: '关闭总水阀', en: 'Shut off main valve' },
