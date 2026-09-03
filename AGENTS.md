@@ -12,7 +12,6 @@ Notes for humans and coding agents working on this repository.
 - `src/mcp/` — tool definitions (`tools.ts`), registration lifecycle (`register.ts`)
 - `src/ui/` — dashboard, confirm card, event log, start poster, debrief report, `LearnPage.tsx` (`#learn` agent view)
 - `tests/` — Vitest behavior suite (`npm test`)
-- `docs/` — product plan (`plan.md`), Devpost copy and video script (`SUBMISSION.md`)
 
 ## Key conventions
 

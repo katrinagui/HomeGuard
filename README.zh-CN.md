@@ -102,12 +102,6 @@ GitHub Pages 部署（即上面的在线演示）无法自定义响应头，因�
 npm run deploy:pages     # 以 --base=/HomeGuard/ 构建并推送 dist/ 到 gh-pages 分支
 ```
 
-## 文档
-
-- [docs/plan.md](docs/plan.md) — 产品/工程计划书
-- [docs/phase1.md](docs/phase1.md) — 提交前审查与修复
-- [docs/SUBMISSION.md](docs/SUBMISSION.md) — Devpost 文案与 3 分钟视频脚本
-
 ## 许可证
 
 [MIT](LICENSE)

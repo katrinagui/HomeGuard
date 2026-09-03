@@ -102,12 +102,6 @@ The GitHub Pages deployment (the Live Demo above) cannot send custom headers, so
 npm run deploy:pages     # builds with --base=/HomeGuard/ and pushes dist/ to gh-pages
 ```
 
-## Documentation
-
-- [docs/plan.md](docs/plan.md) — product/engineering plan
-- [docs/phase1.md](docs/phase1.md) — pre-submission review and fixes
-- [docs/SUBMISSION.md](docs/SUBMISSION.md) — Devpost copy and the 3-minute video script
-
 ## License
 
 [MIT](LICENSE)
