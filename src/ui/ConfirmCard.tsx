@@ -2,13 +2,13 @@ import { useHouse } from '../store';
 
 const CONSEQUENCES: Record<string, { title: string; body: string; approve: string }> = {
   shut_off_main_valve: {
-    title: '🚿 确认：关闭总水阀',
+    title: '关闭总水阀',
     body: '全屋将立即停水；正在运行的洗衣机/洗碗机将停止。这是止住厨房漏水的唯一手段。',
     approve: '确认关闭总水阀',
   },
   kill_main_breaker: {
-    title: '⚡ 确认：拉下总电闸',
-    body: '全屋将立即断电。冰箱接在同一回路，冷藏食材会报废（损失 +120 分）。请确认是否继续。',
+    title: '拉下总电闸',
+    body: '全屋市电设备将立即断电。冰箱接在同一回路，冷藏食材会报废（损失 +120 分）。请确认是否继续。',
     approve: '确认拉下总电闸',
   },
 };
@@ -24,10 +24,12 @@ export function ConfirmCard() {
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={c.title}>
       <div className="modal">
+        <p className="kicker">危险操作 · REQUIRES CONFIRMATION</p>
+        <div className="modal-rule" aria-hidden="true" />
         <h2>{c.title}</h2>
         <p>{c.body}</p>
         {pending.actor === 'agent' && (
-          <p className="modal-source">来源：🤖 ChatGPT 智能体请求执行此操作</p>
+          <p className="modal-source">来源：ChatGPT 智能体请求执行此操作</p>
         )}
         <div className="modal-actions">
           <button className="primary" onClick={confirmPending}>{c.approve}</button>

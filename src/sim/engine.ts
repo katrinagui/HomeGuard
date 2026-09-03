@@ -62,7 +62,7 @@ export function tick(state: HouseState, dt: number): { events: HouseEvent[]; jus
     events.push({
       t: s.elapsed,
       kind: 'sim',
-      text: '🚨 厨房水浸传感器触发！检测到持续漏水，水位正在上涨。',
+      text: '厨房水浸传感器触发：供水管爆裂，积水持续上涨。',
     });
   }
 
@@ -91,7 +91,7 @@ export function tick(state: HouseState, dt: number): { events: HouseEvent[]; jus
 
   if (s.leakActive && s.valveShut && state.rooms[kitchen].waterLevelCm <= 0) {
     s.phase = 'resolved';
-    events.push({ t: s.elapsed, kind: 'system', text: '✅ 厨房积水已排净，险情解除。' });
+    events.push({ t: s.elapsed, kind: 'system', text: '厨房积水已排净，险情解除。' });
     return { events, justResolved: true };
   }
 
@@ -99,9 +99,9 @@ export function tick(state: HouseState, dt: number): { events: HouseEvent[]; jus
 }
 
 export function starRating(damageScore: number): { stars: number; label: string } {
-  if (damageScore < 150) return { stars: 3, label: '金牌管家 🏅' };
-  if (damageScore < 400) return { stars: 2, label: '合格管家 👍' };
-  return { stars: 1, label: '勉强及格 😬' };
+  if (damageScore < 150) return { stars: 3, label: '金牌管家' };
+  if (damageScore < 400) return { stars: 2, label: '合格管家' };
+  return { stars: 1, label: '勉强及格' };
 }
 
 function round1(n: number): number {

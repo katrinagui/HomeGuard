@@ -71,7 +71,7 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
       house: {
         ...s.house,
         scenario: { ...s.house.scenario, phase: 'active' },
-        events: [...s.house.events, { t: 0, kind: 'system', text: '⏱ 演习开始。房屋状态进入实时监控。' }],
+        events: [...s.house.events, { t: 0, kind: 'system', text: '演习开始，房屋状态进入实时监控。' }],
       },
     }));
   },
@@ -136,7 +136,7 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
           {
             t: s.house.scenario.elapsed,
             kind: actor,
-            text: `${actor === 'agent' ? '🤖 智能体' : '👆 用户'}将「${device.name}」${on ? '开启' : '关闭'}。`,
+            text: `${actor === 'agent' ? '智能体' : '用户'}将「${device.name}」${on ? '开启' : '关闭'}。`,
           },
         ],
       },
@@ -164,7 +164,7 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
           {
             t: s.house.scenario.elapsed,
             kind: actor,
-            text: `${actor === 'agent' ? '🤖 智能体' : '👆 用户'}将温控目标设为 ${targetC}°C。`,
+            text: `${actor === 'agent' ? '智能体' : '用户'}将温控目标设为 ${targetC}°C。`,
           },
         ],
       },
@@ -189,7 +189,7 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
           ...s.house,
           events: [
             ...s.house.events,
-            { t: s.house.scenario.elapsed, kind: actor === 'agent' ? 'agent' : 'human', text: `⚠️ 请求${label}，等待用户确认。` },
+            { t: s.house.scenario.elapsed, kind: actor === 'agent' ? 'agent' : 'human', text: `请求${label}，等待用户确认。` },
           ],
         },
       }));
@@ -208,7 +208,7 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
           ...s.house,
           scenario: { ...s.house.scenario, valveShut: true },
           devices: { ...s.house.devices, main_valve: { ...s.house.devices.main_valve, on: false } },
-          events: [...s.house.events, { t: now, kind: 'system', text: '🚿 总水阀已关闭，供水切断，漏水停止。' }],
+          events: [...s.house.events, { t: now, kind: 'system', text: '总水阀已关闭，供水切断，漏水停止。' }],
         },
       }));
     } else {
@@ -235,7 +235,7 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
             {
               t: now,
               kind: 'system',
-              text: `⚡ 总电闸已拉下：全屋断电，冰箱等市电设备全部停止（食材报废，损失 +${SPOILED_FOOD_PENALTY} 分）。`,
+              text: `总电闸已拉下：全屋断电，冰箱等市电设备全部停止（食材报废，损失 +${SPOILED_FOOD_PENALTY} 分）。`,
             },
           ],
         },
@@ -252,7 +252,7 @@ export const useHouse = create<HomeGuardStore>((set, get) => ({
       pendingConfirmation: null,
       house: {
         ...s.house,
-        events: [...s.house.events, { t: s.house.scenario.elapsed, kind: 'system', text: `🚫 用户拒绝了「${label}」。` }],
+        events: [...s.house.events, { t: s.house.scenario.elapsed, kind: 'system', text: `用户拒绝了「${label}」。` }],
       },
     }));
     pending.resolve('rejected');
