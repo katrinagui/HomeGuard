@@ -1,0 +1,350 @@
+// Real-time 3D dollhouse (three.js) — the dashboard's live view.
+// State is read from the store every frame: kitchen_leak raises the water
+// plane with drip particles, heater_runaway glows the radiator with rising
+// heat sprites, active faults pulse a red emergency light in the fault room.
+
+import { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { useHouse } from '../store';
+import { useLocale } from '../i18n';
+
+/** Floating status-dot positions per device id (house-local coordinates). */
+const MARKERS: Array<{ id: string; pos: [number, number, number] }> = [
+  { id: 'main_valve', pos: [-0.7, 0.42, 1.9] },
+  { id: 'main_breaker', pos: [0.7, 0.42, 1.9] },
+  { id: 'kitchen_light', pos: [-1.1, 1.28, 0.2] },
+  { id: 'kitchen_fridge', pos: [-1.85, 1.18, -1.05] },
+  { id: 'living_room_light', pos: [1.78, 1.22, 0.75] },
+  { id: 'robot_vacuum', pos: [0.72, 0.34, 0.45] },
+  { id: 'thermostat', pos: [0.6, 1.06, -1.5] },
+  { id: 'smart_lock', pos: [1.95, 0.72, 1.55] },
+];
+
+const KITCHEN_CENTER = new THREE.Vector3(-1.1, 0.9, 0);
+const LIVING_CENTER = new THREE.Vector3(1.1, 0.9, 0);
+
+function makeGlowTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 32;
+  c.height = 32;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 32, 32);
+  return new THREE.CanvasTexture(c);
+}
+
+export function House3D() {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const kitchenChipRef = useRef<HTMLDivElement>(null);
+  const livingChipRef = useRef<HTMLDivElement>(null);
+  const locale = useLocale((s) => s.locale);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.domElement.className = 'house3d-canvas';
+    wrap.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+
+    // --- camera orbit state (drag to rotate, wheel to zoom) ---
+    let theta = -0.62;
+    let phi = 1.02;
+    let radius = 9.2;
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    const applyCamera = () => {
+      camera.position.set(
+        radius * Math.sin(phi) * Math.sin(theta),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.cos(theta),
+      );
+      camera.lookAt(0, 0.4, 0);
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      dragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      renderer.domElement.setPointerCapture(e.pointerId);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (!dragging) return;
+      theta -= (e.clientX - lastX) * 0.006;
+      phi = THREE.MathUtils.clamp(phi - (e.clientY - lastY) * 0.005, 0.5, 1.32);
+      lastX = e.clientX;
+      lastY = e.clientY;
+    };
+    const onPointerUp = () => {
+      dragging = false;
+    };
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      radius = THREE.MathUtils.clamp(radius * (1 + e.deltaY * 0.0012), 6, 14);
+    };
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointermove', onPointerMove);
+    renderer.domElement.addEventListener('pointerup', onPointerUp);
+    renderer.domElement.addEventListener('pointercancel', onPointerUp);
+    renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
+
+    // --- lights ---
+    scene.add(new THREE.AmbientLight(0xffffff, 1.1));
+    const sun = new THREE.DirectionalLight(0xfff4e0, 1.6);
+    sun.position.set(5, 8, 4);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.left = -5;
+    sun.shadow.camera.right = 5;
+    sun.shadow.camera.top = 5;
+    sun.shadow.camera.bottom = -5;
+    scene.add(sun);
+
+    const alarmLight = new THREE.PointLight(0xff2d1a, 0, 7, 1.6);
+    alarmLight.position.y = 1.6;
+    scene.add(alarmLight);
+    const heaterLight = new THREE.PointLight(0xff7a1f, 0, 4, 1.8);
+    heaterLight.position.set(1.1, 0.7, -1.2);
+    scene.add(heaterLight);
+
+    // --- house shell ---
+    const house = new THREE.Group();
+    scene.add(house);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xf6f1e4, roughness: 0.95 });
+    const darkLine = 0x8f8770;
+
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.22, 3.6), new THREE.MeshStandardMaterial({ color: 0xd9d2bd, roughness: 1 }));
+    slab.position.y = -0.11;
+    slab.receiveShadow = true;
+    house.add(slab);
+
+    const addWall = (w: number, h: number, d: number, x: number, y: number, z: number) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+      m.position.set(x, y, z);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      house.add(m);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: darkLine }));
+      edges.position.copy(m.position);
+      house.add(edges);
+    };
+
+    addWall(4.6, 1.35, 0.1, 0, 0.675, -1.75); // back
+    addWall(0.1, 1.35, 3.6, -2.25, 0.675, 0); // left
+    addWall(0.1, 1.35, 3.6, 2.25, 0.675, 0); // right
+    addWall(0.08, 1.35, 3.6, 0, 0.675, 0); // center divider
+    addWall(1.9, 0.22, 0.08, -1.15, 0.11, 1.76); // kitchen front rail
+    addWall(1.7, 0.22, 0.08, 1.25, 0.11, 1.76); // living front rail
+
+    // floating gable roof outline (blueprint style)
+    const roofPts: THREE.Vector3[] = [];
+    const eave = 1.55;
+    const ridge = 2.55;
+    const zx = 2.45;
+    const zz = 1.95;
+    const corner = (x: number, z: number) => new THREE.Vector3(x, eave, z);
+    const r1 = new THREE.Vector3(0, ridge, -zz);
+    const r2 = new THREE.Vector3(0, ridge, zz);
+    for (const z of [-zz, zz]) {
+      roofPts.push(corner(-zx, z), new THREE.Vector3(0, ridge, z), corner(zx, z));
+      roofPts.push(corner(-zx, z), corner(zx, z));
+    }
+    roofPts.push(r1, r2);
+    house.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(roofPts), new THREE.LineBasicMaterial({ color: darkLine })));
+
+    // --- furniture (stylized boxes) ---
+    const propMat = new THREE.MeshStandardMaterial({ color: 0xe6dfcb, roughness: 0.9 });
+    const prop = (w: number, h: number, d: number, x: number, y: number, z: number, color?: number) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), color ? new THREE.MeshStandardMaterial({ color, roughness: 0.85 }) : propMat);
+      m.position.set(x, y, z);
+      m.castShadow = true;
+      house.add(m);
+      return m;
+    };
+    prop(1.7, 0.55, 0.45, -1.15, 0.275, -1.45); // kitchen counter
+    prop(0.5, 1.05, 0.55, -1.9, 0.525, -0.95, 0xdfe8ee); // fridge
+    prop(1.15, 0.38, 0.55, 1.25, 0.19, 0.55, 0xe0d6bf); // sofa seat
+    prop(1.15, 0.5, 0.16, 1.25, 0.55, 0.28, 0xe0d6bf); // sofa back
+    const radiator = prop(0.85, 0.42, 0.14, 1.1, 0.21, -1.58, 0xd8dbe0); // radiator (heater)
+    prop(0.2, 0.14, 0.05, 0.6, 0.95, -1.67, 0xcfd6da); // thermostat on wall
+    const lampPole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.0, 8), propMat);
+    lampPole.position.set(1.82, 0.5, 0.85);
+    house.add(lampPole);
+    const lampShade = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.18, 12, 1, true), propMat);
+    lampShade.position.set(1.82, 1.05, 0.85);
+    house.add(lampShade);
+
+    // --- water (kitchen_leak) ---
+    const waterMat = new THREE.MeshStandardMaterial({
+      color: 0x2f8fd9,
+      transparent: true,
+      opacity: 0,
+      roughness: 0.12,
+      metalness: 0.15,
+    });
+    const water = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.02, 3.15), waterMat);
+    water.position.set(-1.12, 0.03, 0);
+    house.add(water);
+
+    // leak drips
+    const dripMat = new THREE.MeshBasicMaterial({ color: 0x63b3e8 });
+    const drips: Array<{ mesh: THREE.Mesh; offset: number }> = [];
+    for (let i = 0; i < 3; i += 1) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8), dripMat);
+      m.visible = false;
+      house.add(m);
+      drips.push({ mesh: m, offset: i / 3 });
+    }
+
+    // heater heat sprites
+    const glowTex = makeGlowTexture();
+    const heatSprites: THREE.Sprite[] = [];
+    for (let i = 0; i < 22; i += 1) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff8a3c, transparent: true, opacity: 0, depthWrite: false }));
+      const scale = 0.12 + Math.random() * 0.1;
+      s.scale.setScalar(scale);
+      house.add(s);
+      heatSprites.push(s);
+    }
+    const heatSeeds = heatSprites.map(() => ({
+      x: (Math.random() - 0.5) * 0.6,
+      z: (Math.random() - 0.5) * 0.12,
+      speed: 0.35 + Math.random() * 0.4,
+      phase: Math.random(),
+    }));
+
+    // --- device markers ---
+    const markerMeshes = new Map<string, THREE.Mesh>();
+    const markerGeo = new THREE.SphereGeometry(0.055, 12, 12);
+    const onMat = new THREE.MeshBasicMaterial({ color: 0x2e7d4f });
+    const offMat = new THREE.MeshBasicMaterial({ color: 0xa39b85 });
+    for (const mk of MARKERS) {
+      const m = new THREE.Mesh(markerGeo, offMat);
+      m.position.set(...mk.pos);
+      house.add(m);
+      markerMeshes.set(mk.id, m);
+    }
+
+    // --- resize ---
+    const resize = () => {
+      const w = wrap.clientWidth || 1;
+      const h = wrap.clientHeight || 1;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(wrap);
+
+    // --- frame loop ---
+    let raf = 0;
+    const project = (v: THREE.Vector3, el: HTMLDivElement | null) => {
+      if (!el) return;
+      const p = v.clone().project(camera);
+      if (p.z > 1) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = '';
+      el.style.left = `${((p.x + 1) / 2) * 100}%`;
+      el.style.top = `${((-p.y + 1) / 2) * 100}%`;
+    };
+
+    const tick = (tMs: number) => {
+      raf = requestAnimationFrame(tick);
+      if (document.hidden) return;
+      const t = tMs / 1000;
+      const { house: state } = useHouse.getState();
+      const s = state.scenario;
+
+      if (!dragging) theta += 0.0011; // gentle idle orbit
+      applyCamera();
+
+      // markers
+      const bob = Math.sin(t * 2) * 0.012;
+      for (const mk of MARKERS) {
+        const mesh = markerMeshes.get(mk.id)!;
+        const on = state.devices[mk.id as keyof typeof state.devices].on;
+        mesh.material = on ? onMat : offMat;
+        mesh.position.y = mk.pos[1] + bob;
+      }
+
+      // kitchen leak
+      const leak = s.id === 'kitchen_leak' && s.leakActive && !s.valveShut;
+      const level = state.rooms.kitchen.waterLevelCm;
+      water.position.y = 0.02 + level * 0.006;
+      waterMat.opacity = leak ? Math.min(0.72, 0.32 + level * 0.02) : level > 0 ? 0.45 : 0;
+      for (const d of drips) {
+        d.offset = (d.offset + 0.0075) % 1;
+        const surfY = water.position.y + 0.02;
+        d.mesh.visible = leak;
+        if (leak) d.mesh.position.set(-1.1, 1.3 - d.offset * (1.3 - surfY), 0.3 + Math.sin(d.offset * 9) * 0.05);
+      }
+
+      // heater runaway
+      const heaterOn = s.id === 'heater_runaway' && s.heaterActive && state.devices.thermostat.on;
+      const heat = heaterOn ? THREE.MathUtils.clamp((state.rooms.living_room.temperatureC - 23) / 10, 0, 1) : 0;
+      const radMat = radiator.material as THREE.MeshStandardMaterial;
+      radMat.emissive = new THREE.Color(0xff5a1f);
+      radMat.emissiveIntensity = heat * (0.55 + 0.35 * Math.sin(t * 4));
+      heaterLight.intensity = heat * (1.4 + 0.8 * Math.sin(t * 3.3));
+      heatSprites.forEach((sp, i) => {
+        const seed = heatSeeds[i];
+        const prog = (seed.phase + t * seed.speed * 0.55) % 1;
+        sp.position.set(1.1 + seed.x * (0.4 + prog * 0.5), 0.45 + prog * 1.5, -1.58 + seed.z);
+        sp.material.opacity = Math.sin(Math.PI * prog) * 0.75 * heat;
+      });
+
+      // emergency pulse
+      const fault = leak || heaterOn;
+      alarmLight.position.set(leak ? -1.1 : 1.1, 1.6, 0);
+      alarmLight.intensity = fault ? 1.6 + 1.3 * Math.sin(t * 5.2) : 0;
+
+      // room chips follow their rooms
+      project(KITCHEN_CENTER, kitchenChipRef.current);
+      project(LIVING_CENTER, livingChipRef.current);
+
+      renderer.render(scene, camera);
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('pointermove', onPointerMove);
+      renderer.domElement.removeEventListener('pointerup', onPointerUp);
+      renderer.domElement.removeEventListener('pointercancel', onPointerUp);
+      renderer.domElement.removeEventListener('wheel', onWheel);
+      scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (mesh.geometry) mesh.geometry.dispose();
+        const mat = mesh.material as THREE.Material | THREE.Material[] | undefined;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else mat?.dispose();
+      });
+      glowTex.dispose();
+      renderer.dispose();
+      renderer.domElement.remove();
+    };
+  }, []);
+
+  return (
+    <div className="house3d-wrap" ref={wrapRef}>
+      <div className="room-chip" ref={kitchenChipRef}>{locale === 'zh' ? '厨房' : 'KITCHEN'}</div>
+      <div className="room-chip" ref={livingChipRef}>{locale === 'zh' ? '客厅' : 'LIVING'}</div>
+    </div>
+  );
+}

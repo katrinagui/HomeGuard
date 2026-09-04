@@ -9,13 +9,6 @@ const webmcpHeaders = { 'Origin-Agent-Cluster': '?1' };
 export default defineConfig({
   base: process.env.VITE_BASE || '/',
   plugins: [react()],
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: { three: ['three'] },
-      },
-    },
-  },
   server: { headers: webmcpHeaders },
   preview: { headers: webmcpHeaders },
 });

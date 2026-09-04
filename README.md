@@ -36,6 +36,10 @@ Every drill randomly draws one of two household faults:
 
 No new tools per script: the tool set models the home, not a storyline — which is exactly the composability WebMCP is meant to enable.
 
+### The live 3D dollhouse
+
+The dashboard's centerpiece is a real-time **three.js dollhouse** that mirrors the simulation: drag to orbit, scroll to zoom. When the pipe bursts, a translucent water plane rises across the kitchen floor with drip particles and a pulsing red emergency light; during a heater runaway the radiator glows and heat sprites rise while the room warms. Every device carries a floating status dot that tracks its live state, and the room labels project from 3D space onto the screen.
+
 ### Agent view (#learn)
 
 Open **`/#learn`** (also linked from the start poster and the dashboard footer) to see the page the way an agent does: the six registered tools with their descriptions and read-only annotations, plus a live `get_house_status` JSON payload. The start poster also offers a one-click **starter prompt** to paste into ChatGPT.
@@ -81,7 +85,8 @@ src/
 ├── mcp/
 │   ├── tools.ts     # tool definitions, destructive guard, confirmation-queue bridge
 │   └── register.ts  # document → navigator → polyfill fallback + lifecycle cleanup
-└── ui/          # dashboard, confirm card, event log, start poster, debrief, #learn
+└── ui/          # dashboard, 3D dollhouse (three.js), confirm card, event log,
+                 # start poster, debrief, #learn
 tests/           # Vitest behavior suite
 ```
 
