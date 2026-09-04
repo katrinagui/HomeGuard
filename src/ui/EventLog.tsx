@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useHouse } from '../store';
 import type { EventKind } from '../sim/house';
-import { translate, tMsg, useLocale } from '../i18n';
+import { tMsg, useLocale } from '../i18n';
 
 const TAGS: Record<EventKind, string> = {
   system: 'SYS',
@@ -20,12 +20,7 @@ export function EventLog() {
   }, [events.length]);
 
   return (
-    <section className="card log-card">
-      <div className="card-head">
-        <span className="card-index">04</span>
-        <h2>{translate('ui.card.log', locale)}</h2>
-        <span className="card-note">{translate('ui.card.logNote', locale)}</span>
-      </div>
+    <div className="feed">
       <div className="log">
         {events.slice(-60).map((e, i) => (
           <div key={i} className="log-line">
@@ -36,7 +31,7 @@ export function EventLog() {
         ))}
         <div ref={bottomRef} />
       </div>
-    </section>
+    </div>
   );
 }
 
