@@ -10,7 +10,7 @@ Notes for humans and coding agents working on this repository.
 - `src/sim/` — house model + tick engine (`kitchen_leak` and `heater_runaway` scenarios, pure functions)
 - `src/store.ts` — single Zustand store: UI and tool handlers share one set of actions
 - `src/mcp/` — tool definitions (`tools.ts`), registration lifecycle (`register.ts`)
-- `src/ui/` — dashboard, confirm card, event log, start poster, debrief report, `LearnPage.tsx` (`#learn` agent view)
+- `src/ui/` — dashboard, 3D dollhouse (`House3D.tsx`, three.js, mirrors sim state per frame), confirm card, event log, start poster, debrief report, `LearnPage.tsx` (`#learn` agent view)
 - `tests/` — Vitest behavior suite (`npm test`)
 
 ## Key conventions
